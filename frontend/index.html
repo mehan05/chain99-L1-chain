@@ -97,7 +97,7 @@
           <span>🔑</span>
         </div>
         <div class="kpi-value font-mono" style="font-size: 1rem; color: var(--accent-cyan);" id="kpi-validator-addr">
-          0xB562...e6b8
+          0x86fc...A904
         </div>
         <div class="kpi-sub">Node 1 Mining Sealer</div>
       </div>
@@ -134,9 +134,10 @@
           <div class="panel-title">
             <span>Real-Time Mined Blocks Feed</span>
             <span class="block-badge" id="block-feed-counter">Live</span>
+            <button id="btn-resume-live" class="btn-sm-action" style="display: none;" onclick="goToLiveBlockFeed()">⚡ Return to Live</button>
           </div>
           <div style="font-size: 0.8rem; color: var(--text-dim);">
-            Click any block row to inspect raw header & trie hashes
+            Click any block row to inspect detailed header & trie hashes
           </div>
         </div>
 
@@ -160,6 +161,25 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- ── Block Pagination Controls ──────────────────────── -->
+        <div class="block-pagination-bar">
+          <div class="pagination-info" id="pagination-info-text">
+            Loading blocks...
+          </div>
+          <div class="pagination-controls">
+            <button class="pag-btn" id="btn-pag-latest" onclick="goToLiveBlockFeed()" title="Jump to Latest Mined Blocks" disabled>⏮️ Latest</button>
+            <button class="pag-btn" id="btn-pag-newer" onclick="navigateBlockPage(-1)" title="Go to Newer Blocks" disabled>◀️ Newer</button>
+            <span class="pag-page-pill" id="pag-page-display">Page 1</span>
+            <button class="pag-btn" id="btn-pag-older" onclick="navigateBlockPage(1)" title="Go to Older Blocks">Older ▶️</button>
+            <button class="pag-btn" id="btn-pag-genesis" onclick="goToGenesisBlock()" title="Jump to Genesis Block #0">Genesis ⏭️</button>
+          </div>
+          <div class="pagination-jump">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Jump to Block:</span>
+            <input type="number" id="input-jump-block" placeholder="e.g. 1019" min="0" class="pag-input" onkeydown="if(event.key==='Enter') jumpToBlockNumber()" />
+            <button class="pag-btn-primary" onclick="jumpToBlockNumber()">Go</button>
+          </div>
         </div>
       </div>
     </div>
@@ -319,10 +339,14 @@ contract Storage {
 
         <div class="form-group">
           <label class="form-label">Sender Account</label>
-          <select class="form-select" id="transfer-sender-mode">
-            <option value="validator">Genesis Validator (0xB562...e6b8)</option>
+          <select class="form-select" id="transfer-sender-mode" onchange="updateTransferSenderDisplay()">
+            <option value="validator">Genesis Validator (Node 1 Pool: 0x86fc...A904)</option>
             <option value="injected">Connected Browser Wallet (MetaMask)</option>
           </select>
+          <div style="margin-top: 6px; font-size: 0.8rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
+            <span id="transfer-sender-addr-display">Sender: 0x86fc...A904</span>
+            <span id="transfer-sender-bal-display" style="color: var(--accent-emerald); font-weight: 600;">Balance: Loading...</span>
+          </div>
         </div>
 
         <div class="form-group">
@@ -475,11 +499,14 @@ contract Storage {
   <div class="modal-overlay" id="block-modal">
     <div class="modal-dialog">
       <div class="modal-header">
-        <div style="font-weight: 700; font-size: 1.1rem;" id="modal-block-title">Block Details</div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="font-weight: 700; font-size: 1.25rem;" id="modal-block-title">Block Details</div>
+          <span id="modal-block-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.75rem; padding: 3px 10px; border-radius: 999px; font-weight: 600;">Finalized (Clique PoA)</span>
+        </div>
         <button class="modal-close-btn" id="btn-close-modal">&times;</button>
       </div>
-      <div class="modal-body">
-        <pre class="code-output" id="modal-block-content" style="max-height: 480px;">Loading block data...</pre>
+      <div class="modal-body" id="modal-block-body">
+        <div style="text-align: center; padding: 40px; color: var(--text-muted);">Loading block data...</div>
       </div>
     </div>
   </div>

@@ -36,7 +36,12 @@ let appState = {
   blocksCache: [],
   connectedAddress: null,
   activeContractAddress: localStorage.getItem("chain99_storage_address") || null,
-  useProxy: false
+  useProxy: false,
+  // Pagination State
+  blockFeedPage: 1,
+  pageSize: 10,
+  isLiveFeed: true,
+  currentViewTopBlock: null
 };
 
 // ── JSON-RPC Engine ──────────────────────────────────────────
@@ -166,10 +171,23 @@ async function updateNetworkStatus() {
     // Update current block KPI
     document.getElementById("kpi-block-number").innerText = `#${blockNum.toLocaleString()}`;
 
-    // If new block detected, fetch it
+    // If new block detected
     if (appState.latestBlock === null || blockNum > appState.latestBlock) {
       appState.latestBlock = blockNum;
-      await fetchAndRenderRecentBlocks(blockNum);
+
+      // Only auto-update the table if user is in Live Feed mode
+      if (appState.isLiveFeed) {
+        await fetchAndRenderBlocksPage(null);
+      } else {
+        // If user is browsing history, update pagination counters without disrupting their current page view
+        const latest = blockNum;
+        const pageSize = appState.pageSize || 10;
+        const totalPages = Math.max(1, Math.ceil((latest + 1) / pageSize));
+        const top = appState.currentViewTopBlock !== null ? appState.currentViewTopBlock : latest;
+        const bottom = Math.max(0, top - (pageSize - 1));
+        updatePaginationUI(top, bottom, latest, totalPages);
+      }
+
       updateValidatorBalance();
       if (appState.activeContractAddress) {
         refreshContractValue();
@@ -194,10 +212,25 @@ async function updateValidatorBalance() {
   }
 }
 
-async function fetchAndRenderRecentBlocks(currentBlockNum) {
+// ── Paginated Block Feed Fetcher ──────────────────────────────
+async function fetchAndRenderBlocksPage(topBlockNum = null) {
+  const latest = appState.latestBlock || 0;
+  const pageSize = appState.pageSize || 10;
+  const totalPages = Math.max(1, Math.ceil((latest + 1) / pageSize));
+
+  let topBlock;
+  if (appState.isLiveFeed || topBlockNum === null) {
+    topBlock = latest;
+    appState.currentViewTopBlock = latest;
+    appState.blockFeedPage = 1;
+  } else {
+    topBlock = Math.min(latest, Math.max(0, topBlockNum));
+    appState.currentViewTopBlock = topBlock;
+  }
+
+  const bottomBlock = Math.max(0, topBlock - (pageSize - 1));
   const blocksToFetch = [];
-  const start = Math.max(0, currentBlockNum - 8);
-  for (let i = currentBlockNum; i >= start; i--) {
+  for (let i = topBlock; i >= bottomBlock; i--) {
     const hexI = "0x" + i.toString(16);
     blocksToFetch.push(rpcCall("eth_getBlockByNumber", [hexI, false]));
   }
@@ -209,14 +242,14 @@ async function fetchAndRenderRecentBlocks(currentBlockNum) {
     const tbody = document.getElementById("blocks-table-body");
     tbody.innerHTML = "";
 
-    blocks.forEach((block, idx) => {
+    blocks.forEach((block) => {
       if (!block) return;
       const bNum = hexToDecimal(block.number);
       const txCount = block.transactions ? block.transactions.length : 0;
       const gasUsed = hexToDecimal(block.gasUsed);
       const miner = block.miner || CONFIG.VALIDATOR_ADDRESS;
       const timestamp = hexToDecimal(block.timestamp);
-      const timeStr = new Date(timestamp * 1000).toLocaleTimeString();
+      const timeStr = new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
       const tr = document.createElement("tr");
       tr.className = "block-row";
@@ -240,21 +273,385 @@ async function fetchAndRenderRecentBlocks(currentBlockNum) {
       tbody.appendChild(tr);
     });
 
-    document.getElementById("block-feed-counter").innerText = `#${currentBlockNum}`;
+    updatePaginationUI(topBlock, bottomBlock, latest, totalPages);
   } catch (err) {
-    console.error("Error fetching blocks:", err);
+    console.error("Error fetching blocks page:", err);
   }
 }
 
-// ── Block Inspector Modal ─────────────────────────────────────
-function openBlockModal(block) {
+// ── Update Pagination Controls & Labels ───────────────────────
+function updatePaginationUI(topBlock, bottomBlock, latest, totalPages) {
+  const isAtLatest = (topBlock >= latest);
+  const isAtGenesis = (bottomBlock <= 0);
+  const pageSize = appState.pageSize || 10;
+  const currentPage = Math.max(1, Math.floor((latest - topBlock) / pageSize) + 1);
+
+  const btnLatest = document.getElementById("btn-pag-latest");
+  const btnNewer = document.getElementById("btn-pag-newer");
+  const btnOlder = document.getElementById("btn-pag-older");
+  const btnGenesis = document.getElementById("btn-pag-genesis");
+  const resumeBtn = document.getElementById("btn-resume-live");
+  const counterBadge = document.getElementById("block-feed-counter");
+  const pagePill = document.getElementById("pag-page-display");
+  const infoText = document.getElementById("pagination-info-text");
+
+  if (btnLatest) btnLatest.disabled = isAtLatest;
+  if (btnNewer) btnNewer.disabled = isAtLatest;
+  if (btnOlder) btnOlder.disabled = isAtGenesis;
+  if (btnGenesis) btnGenesis.disabled = isAtGenesis;
+
+  if (pagePill) {
+    pagePill.innerText = `Page ${currentPage} of ${totalPages}`;
+  }
+
+  if (infoText) {
+    infoText.innerHTML = `Showing Blocks <strong style="color: var(--text-main);">#${topBlock}</strong> to <strong style="color: var(--text-main);">#${bottomBlock}</strong> (Latest Mined: #${latest})`;
+  }
+
+  if (appState.isLiveFeed) {
+    if (counterBadge) {
+      counterBadge.innerText = `#${latest} (Live)`;
+      counterBadge.style.background = "";
+      counterBadge.style.color = "";
+    }
+    if (resumeBtn) resumeBtn.style.display = "none";
+  } else {
+    if (counterBadge) {
+      counterBadge.innerText = `History (Paused)`;
+      counterBadge.style.background = "rgba(245, 158, 11, 0.2)";
+      counterBadge.style.color = "var(--accent-amber)";
+    }
+    if (resumeBtn) resumeBtn.style.display = "inline-flex";
+  }
+}
+
+// ── Pagination Action Handlers ────────────────────────────────
+function navigateBlockPage(direction) {
+  // direction > 0: Older blocks (lower block numbers)
+  // direction < 0: Newer blocks (higher block numbers)
+  const pageSize = appState.pageSize || 10;
+  const currentTop = appState.currentViewTopBlock !== null ? appState.currentViewTopBlock : (appState.latestBlock || 0);
+
+  let newTop;
+  if (direction > 0) {
+    // Go older
+    newTop = currentTop - pageSize;
+    if (newTop < (pageSize - 1) && newTop > 0) {
+      newTop = pageSize - 1;
+    }
+    if (newTop < 0) newTop = 0;
+    appState.isLiveFeed = false;
+  } else {
+    // Go newer
+    newTop = currentTop + pageSize;
+    if (newTop >= (appState.latestBlock || 0)) {
+      goToLiveBlockFeed();
+      return;
+    }
+    appState.isLiveFeed = false;
+  }
+
+  fetchAndRenderBlocksPage(newTop);
+}
+
+function goToLiveBlockFeed() {
+  appState.isLiveFeed = true;
+  appState.blockFeedPage = 1;
+  fetchAndRenderBlocksPage(null);
+  showToast("Resumed live block stream.", "info");
+}
+
+function goToGenesisBlock() {
+  appState.isLiveFeed = false;
+  const pageSize = appState.pageSize || 10;
+  const genesisTop = Math.min(appState.latestBlock || 0, pageSize - 1);
+  fetchAndRenderBlocksPage(genesisTop);
+  showToast("Navigated to Genesis Block #0.", "info");
+}
+
+function jumpToBlockNumber() {
+  const input = document.getElementById("input-jump-block");
+  if (!input || input.value === "") return;
+  const target = parseInt(input.value, 10);
+  if (isNaN(target) || target < 0) {
+    showToast("Please enter a valid block number (>= 0).", "error");
+    return;
+  }
+  const latest = appState.latestBlock || 0;
+  if (target > latest) {
+    showToast(`Block #${target} has not been mined yet (Latest: #${latest}).`, "error");
+    return;
+  }
+
+  appState.isLiveFeed = (target === latest);
+  const pageSize = appState.pageSize || 10;
+  const top = Math.min(latest, target + Math.floor(pageSize / 2));
+  fetchAndRenderBlocksPage(top);
+  showToast(`Jumped to Block #${target}.`, "success");
+  input.value = "";
+}
+
+// Expose handlers globally for onclick
+window.navigateBlockPage = navigateBlockPage;
+window.goToLiveBlockFeed = goToLiveBlockFeed;
+window.goToGenesisBlock = goToGenesisBlock;
+window.jumpToBlockNumber = jumpToBlockNumber;
+
+// ── Block Inspector Modal (Rich Visual UI) ────────────────────
+async function openBlockModal(block) {
   const modal = document.getElementById("block-modal");
   const title = document.getElementById("modal-block-title");
-  const content = document.getElementById("modal-block-content");
+  const modalBody = document.getElementById("modal-block-body");
 
-  title.innerText = `Block #${hexToDecimal(block.number)} Inspection`;
-  content.innerText = JSON.stringify(block, null, 2);
+  const blockNum = hexToDecimal(block.number);
+  const timestamp = hexToDecimal(block.timestamp);
+  const now = Math.floor(Date.now() / 1000);
+  const diffSec = Math.max(0, now - timestamp);
+  const timeFormatted = new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const dateFull = new Date(timestamp * 1000).toLocaleString();
+
+  const txCount = block.transactions ? block.transactions.length : 0;
+  const gasUsed = hexToDecimal(block.gasUsed);
+  const gasLimit = hexToDecimal(block.gasLimit);
+  const gasPercent = gasLimit > 0 ? ((gasUsed / gasLimit) * 100).toFixed(2) : "0.00";
+  const baseFee = block.baseFeePerGas ? hexToDecimal(block.baseFeePerGas) : 7;
+  const sizeBytes = hexToDecimal(block.size);
+  const validator = CONFIG.VALIDATOR_ADDRESS;
+
+  title.innerText = `Block #${blockNum}`;
+
+  // Build the rich modal UI
+  modalBody.innerHTML = `
+    <!-- Top Stat Cards Grid -->
+    <div class="block-stat-grid">
+      <div class="block-stat-card">
+        <div class="block-stat-label">Block Number</div>
+        <div class="block-stat-val">#${blockNum}</div>
+        <div class="block-stat-sub">Height</div>
+      </div>
+      <div class="block-stat-card">
+        <div class="block-stat-label">Transactions</div>
+        <div class="block-stat-val" style="color: ${txCount > 0 ? 'var(--accent-emerald)' : 'var(--text-muted)'};">
+          ${txCount} <span style="font-size: 0.8rem; font-weight: 500;">txs</span>
+        </div>
+        <div class="block-stat-sub">${txCount > 0 ? 'Active payload' : 'Consensus heartbeat'}</div>
+      </div>
+      <div class="block-stat-card">
+        <div class="block-stat-label">Gas Consumed</div>
+        <div class="block-stat-val">${gasUsed.toLocaleString()}</div>
+        <div class="block-stat-sub">${gasPercent}% of ${formatNumber(gasLimit)} limit</div>
+      </div>
+      <div class="block-stat-card">
+        <div class="block-stat-label">Base Fee</div>
+        <div class="block-stat-val">${baseFee} <span style="font-size: 0.8rem; font-weight: 500;">wei</span></div>
+        <div class="block-stat-sub">${sizeBytes} bytes</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs inside Modal -->
+    <div class="modal-nav-tabs">
+      <button class="modal-nav-tab active" onclick="switchBlockModalTab('overview')">📊 Overview</button>
+      <button class="modal-nav-tab" onclick="switchBlockModalTab('txs')">📦 Transactions (${txCount})</button>
+      <button class="modal-nav-tab" onclick="switchBlockModalTab('raw')">💻 Raw JSON</button>
+    </div>
+
+    <!-- Tab 1: Overview Panel -->
+    <div id="block-tab-overview" class="block-modal-panel">
+      <div class="block-detail-table">
+        <div class="block-detail-row">
+          <div class="block-row-label">🕒 Timestamp</div>
+          <div class="block-row-value">
+            <span>${timeFormatted}</span>
+            <span style="color: var(--text-dim);">(${diffSec}s ago · ${dateFull})</span>
+          </div>
+        </div>
+
+        <div class="block-detail-row">
+          <div class="block-row-label">🔒 Block Hash</div>
+          <div class="block-row-value">
+            <span>${truncateHash(block.hash, 16, 12)}</span>
+            <button class="copy-pill-btn" onclick="copyModalText('${block.hash}', this)">📋 Copy</button>
+          </div>
+        </div>
+
+        <div class="block-detail-row">
+          <div class="block-row-label">🔗 Parent Hash</div>
+          <div class="block-row-value">
+            <span>${truncateHash(block.parentHash, 14, 10)}</span>
+            <button class="copy-pill-btn" onclick="copyModalText('${block.parentHash}', this)">📋 Copy</button>
+          </div>
+        </div>
+
+        <div class="block-detail-row">
+          <div class="block-row-label">⚡ Sealer (Miner)</div>
+          <div class="block-row-value">
+            <span style="color: var(--accent-cyan);">${truncateHash(validator, 12, 8)}</span>
+            <span class="badge" style="background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); font-size: 0.72rem; padding: 2px 8px; border-radius: 4px;">Chain99 Validator</span>
+            <button class="copy-pill-btn" onclick="copyModalText('${validator}', this)">📋 Copy</button>
+          </div>
+        </div>
+
+        <div class="block-detail-row">
+          <div class="block-row-label">🌳 State Root</div>
+          <div class="block-row-value">
+            <span>${truncateHash(block.stateRoot, 14, 10)}</span>
+            <button class="copy-pill-btn" onclick="copyModalText('${block.stateRoot}', this)">📋 Copy</button>
+          </div>
+        </div>
+
+        <div class="block-detail-row">
+          <div class="block-row-label">🧾 Receipts Root</div>
+          <div class="block-row-value">
+            <span>${truncateHash(block.receiptsRoot, 14, 10)}</span>
+            <button class="copy-pill-btn" onclick="copyModalText('${block.receiptsRoot}', this)">📋 Copy</button>
+          </div>
+        </div>
+
+        <div class="block-detail-row">
+          <div class="block-row-label">⛽ Gas Limit & Usage</div>
+          <div class="block-row-value" style="flex: 1; justify-content: flex-end;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>${gasUsed.toLocaleString()} / ${gasLimit.toLocaleString()}</span>
+              <div style="width: 80px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 99px; overflow: hidden;">
+                <div style="width: ${Math.max(gasPercent, 2)}%; height: 100%; background: var(--accent-primary);"></div>
+              </div>
+              <span style="color: var(--text-dim); font-size: 0.75rem;">(${gasPercent}%)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="block-detail-row">
+          <div class="block-row-label">🛡️ Consensus Engine</div>
+          <div class="block-row-value">
+            <span>Clique Proof-of-Authority (PoA)</span>
+            <span style="color: var(--accent-emerald); font-size: 0.78rem;">● 2.0s Target</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Transactions Panel -->
+    <div id="block-tab-txs" class="block-modal-panel" style="display: none;">
+      <div id="block-txs-container">
+        <div style="text-align: center; padding: 24px; color: var(--text-muted);">
+          ⏳ Loading transaction receipts...
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Raw JSON Panel -->
+    <div id="block-tab-raw" class="block-modal-panel" style="display: none;">
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+        <button class="copy-pill-btn" onclick="copyModalText(JSON.stringify(window._currentInspectedBlock, null, 2), this)">📋 Copy Full JSON</button>
+      </div>
+      <pre class="code-output" style="max-height: 380px; overflow-y: auto;">${escapeHtml(JSON.stringify(block, null, 2))}</pre>
+    </div>
+  `;
+
+  window._currentInspectedBlock = block;
   modal.classList.add("open");
+
+  // Asynchronously load transaction details if block has transactions
+  loadBlockTransactions(block.transactions);
+}
+
+// ── Tab switcher inside Block Modal ──────────────────────────
+function switchBlockModalTab(tabName) {
+  const tabs = document.querySelectorAll(".modal-nav-tab");
+  tabs.forEach(t => t.classList.remove("active"));
+
+  document.getElementById("block-tab-overview").style.display = tabName === 'overview' ? 'block' : 'none';
+  document.getElementById("block-tab-txs").style.display = tabName === 'txs' ? 'block' : 'none';
+  document.getElementById("block-tab-raw").style.display = tabName === 'raw' ? 'block' : 'none';
+
+  const idx = tabName === 'overview' ? 0 : tabName === 'txs' ? 1 : 2;
+  if (tabs[idx]) tabs[idx].classList.add("active");
+}
+
+// ── Copy text helper with button feedback ────────────────────
+function copyModalText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.innerText;
+    btn.innerText = "✅ Copied!";
+    btn.style.borderColor = "var(--accent-emerald)";
+    btn.style.color = "var(--accent-emerald)";
+    setTimeout(() => {
+      btn.innerText = orig;
+      btn.style.borderColor = "";
+      btn.style.color = "";
+    }, 1500);
+  });
+}
+
+// ── Format Large Numbers ─────────────────────────────────────
+function formatNumber(num) {
+  if (num >= 1e6) return (num / 1e6).toFixed(1) + "M";
+  if (num >= 1e3) return (num / 1e3).toFixed(1) + "k";
+  return num.toString();
+}
+
+// ── HTML Escape helper ───────────────────────────────────────
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ── Load Transaction Details for Block Modal ─────────────────
+async function loadBlockTransactions(txHashes) {
+  const container = document.getElementById("block-txs-container");
+  if (!container) return;
+
+  if (!txHashes || txHashes.length === 0) {
+    container.innerHTML = `
+      <div class="empty-block-box">
+        <div class="empty-block-icon">⚡</div>
+        <div class="empty-block-title">Empty Consensus Heartbeat Block</div>
+        <div class="empty-block-desc">
+          No user transactions were submitted during this 2-second interval. The Chain99 validator signed this block to advance network state and synchronize consensus.
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  try {
+    let txHtml = "";
+    for (let i = 0; i < txHashes.length; i++) {
+      const hash = txHashes[i];
+      let tx = null;
+      try {
+        tx = await rpcCall("eth_getTransactionByHash", [hash]);
+      } catch (e) {
+        console.warn("Failed to fetch tx details:", e);
+      }
+
+      const txFrom = tx && tx.from ? tx.from : "Unknown";
+      const txTo = tx && tx.to ? tx.to : "[Contract Deployment 📄]";
+      const txVal = tx && tx.value ? formatEther(tx.value) : "0.0";
+      const txGas = tx && tx.gas ? hexToDecimal(tx.gas).toLocaleString() : "Gas N/A";
+
+      txHtml += `
+        <div class="tx-card-item">
+          <div class="tx-header-line">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge" style="background: rgba(99, 102, 241, 0.2); color: var(--accent-primary); font-size: 0.72rem; padding: 2px 8px; border-radius: 4px;">Tx #${i + 1}</span>
+              <span style="font-family: var(--font-mono); font-weight: 600; color: var(--text-main);">${truncateHash(hash, 10, 8)}</span>
+              <button class="copy-pill-btn" onclick="copyModalText('${hash}', this)">📋</button>
+            </div>
+            <div style="font-weight: 700; color: var(--accent-emerald);">${txVal} C99</div>
+          </div>
+          <div class="tx-address-flow">
+            <span>From: <strong style="color: var(--text-main);">${truncateHash(txFrom, 8, 6)}</strong></span>
+            <span class="tx-arrow">➔</span>
+            <span>To: <strong style="color: ${txTo.startsWith('[') ? 'var(--accent-amber)' : 'var(--text-main)'};">${truncateHash(txTo, 8, 6)}</strong></span>
+            <span style="margin-left: auto; color: var(--text-dim); font-size: 0.75rem;">Gas: ${txGas}</span>
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = txHtml;
+  } catch (err) {
+    container.innerHTML = `<div style="color: var(--accent-rose); padding: 16px;">Failed to load transaction details: ${err.message}</div>`;
+  }
 }
 
 document.getElementById("btn-close-modal").addEventListener("click", () => {
@@ -434,9 +831,30 @@ function updateContractUI() {
   if (appState.activeContractAddress) {
     addrElem.innerText = appState.activeContractAddress;
     addrElem.style.color = "var(--accent-emerald)";
+    addrElem.style.fontWeight = "600";
   } else {
-    addrElem.innerText = "Not deployed yet (Click 'Deploy New' above)";
+    addrElem.innerText = "Not deployed yet (Click 'Deploy New' above or paste address)";
     addrElem.style.color = "var(--text-muted)";
+    addrElem.style.fontWeight = "normal";
+  }
+}
+
+async function checkAndSyncLatestContract() {
+  if (!appState.activeContractAddress) {
+    try {
+      const res = await fetch("/latest_contract.json");
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.address && data.address.startsWith("0x")) {
+          appState.activeContractAddress = data.address;
+          localStorage.setItem("chain99_storage_address", data.address);
+          updateContractUI();
+          await refreshContractValue();
+        }
+      }
+    } catch (e) {
+      console.warn("Could not auto-fetch latest_contract.json", e);
+    }
   }
 }
 
@@ -518,6 +936,38 @@ async function executeSetContract() {
 }
 
 // ── Native Transfer Module ───────────────────────────────────
+async function updateTransferSenderDisplay() {
+  const modeElem = document.getElementById("transfer-sender-mode");
+  const addrElem = document.getElementById("transfer-sender-addr-display");
+  const balElem = document.getElementById("transfer-sender-bal-display");
+  if (!modeElem || !addrElem || !balElem) return;
+
+  const mode = modeElem.value;
+  if (mode === "injected") {
+    if (appState.connectedAddress) {
+      addrElem.innerText = `Sender: ${truncateHash(appState.connectedAddress, 8, 6)}`;
+      try {
+        const balHex = await rpcCall("eth_getBalance", [appState.connectedAddress, "latest"]);
+        balElem.innerText = `Balance: ${formatEther(balHex)} C99`;
+      } catch (e) {
+        balElem.innerText = "Balance: --";
+      }
+    } else {
+      addrElem.innerText = "Sender: MetaMask (Not Connected)";
+      balElem.innerText = "Please Connect Wallet in Header";
+    }
+  } else {
+    addrElem.innerText = `Sender: ${truncateHash(CONFIG.VALIDATOR_ADDRESS, 8, 6)}`;
+    try {
+      const balHex = await rpcCall("eth_getBalance", [CONFIG.VALIDATOR_ADDRESS, "latest"]);
+      balElem.innerText = `Balance: ${formatEther(balHex)} C99`;
+    } catch (e) {
+      balElem.innerText = "Balance: --";
+    }
+  }
+}
+window.updateTransferSenderDisplay = updateTransferSenderDisplay;
+
 async function handleDirectTransfer() {
   const dest = document.getElementById("transfer-to-addr").value.trim();
   const amt = document.getElementById("transfer-amount").value;
@@ -541,7 +991,10 @@ async function handleDirectTransfer() {
     const weiHex = toWeiHex(amt);
     let txHash;
 
-    if (senderMode === "injected" && window.ethereum && appState.connectedAddress) {
+    if (senderMode === "injected") {
+      if (!appState.connectedAddress) {
+        throw new Error("Please connect your MetaMask wallet in the header first!");
+      }
       txHash = await window.ethereum.request({
         method: "eth_sendTransaction",
         params: [{ from: appState.connectedAddress, to: dest, value: weiHex }]
@@ -560,6 +1013,7 @@ async function handleDirectTransfer() {
     statusTitle.style.color = "var(--accent-emerald)";
     showToast(`Transfer of ${amt} C99 confirmed!`, "success");
     updateValidatorBalance();
+    updateTransferSenderDisplay();
   } catch (err) {
     statusTitle.innerText = "❌ Transfer Failed";
     statusTitle.style.color = "var(--accent-rose)";
@@ -608,6 +1062,8 @@ window.addEventListener("DOMContentLoaded", () => {
   initTabs();
   initRpcConsole();
   updateContractUI();
+  checkAndSyncLatestContract();
+  updateTransferSenderDisplay();
 
   // Button Listeners
   document.getElementById("btn-add-metamask").addEventListener("click", addChain99ToMetaMask);
