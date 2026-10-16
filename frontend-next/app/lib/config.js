@@ -3,7 +3,7 @@
 // =============================================================
 
 export const CONFIG = {
-  RPC_URL: "http://127.0.0.1:8545",
+  RPC_URL: process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8545",
   FALLBACK_PROXY: "/api/rpc",
   CHAIN_ID: 9999,
   CHAIN_ID_HEX: "0x270f",

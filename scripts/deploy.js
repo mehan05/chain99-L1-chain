@@ -33,9 +33,9 @@ async function main() {
   try {
     const fs = require("fs");
     const path = require("path");
-    const jsonPath = path.join(__dirname, "../frontend/latest_contract.json");
+    const jsonPath = path.join(__dirname, "../frontend-next/public/latest_contract.json");
     fs.writeFileSync(jsonPath, JSON.stringify({ address: contractAddress, deployedAt: new Date().toISOString() }, null, 2));
-    console.log(`   🌐 Synced with web frontend dashboard (frontend/latest_contract.json)`);
+    console.log(`   🌐 Synced with Next.js frontend (frontend-next/public/latest_contract.json)`);
   } catch (e) {}
 
   // ── 2. Read Initial Value (Instruction 1) ───────────────────

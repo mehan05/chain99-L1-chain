@@ -77,5 +77,4 @@ Show the formatted CLI output proving automated wallet decryption, native C99 tr
 If you ever need to stop or restart the services before your meeting:
 
 * **To Stop Node**: `taskkill /F /IM geth.exe`
-* **To Restart Node**: Run `cmd.exe /c .\scripts\start-node.cmd`
-* **To Restart Frontend**: `node frontend/server.js`
+* **To Restart Frontend (Next.js)**: `cd frontend-next && npm run dev` (or run `.\scripts\start-frontend.cmd`)
