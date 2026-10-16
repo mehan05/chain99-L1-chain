@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Chain99 L1 Devnet — Interactive Sovereign Blockchain Explorer, Faucet, and Smart Contract Studio">
+  <title>Chain99 L1 — Sovereign Blockchain Explorer & Studio</title>
+  
+  <!-- Modern Typography from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── Navigation Bar ──────────────────────────────────────── -->
+  <header class="navbar">
+    <div class="brand-wrapper">
+      <div class="brand-logo" id="brand-logo-icon">99</div>
+      <div class="brand-meta">
+        <div class="brand-title">
+          Chain99 L1
+          <span class="badge-chain" id="chain-badge">Chain ID 9999</span>
+        </div>
+        <div class="brand-sub">Sovereign EVM Blockchain &bull; Clique PoA Engine</div>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <!-- Live RPC Pulse -->
+      <div class="network-status-badge" id="net-status-badge">
+        <span class="pulse-dot" id="pulse-dot"></span>
+        <span id="status-text">Connecting to Node...</span>
+      </div>
+
+      <!-- Add to MetaMask Button -->
+      <button class="btn btn-metamask" id="btn-add-metamask" title="Add Chain99 to your browser wallet">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21.5 10.7L18.4 4.1C18.2 3.6 17.6 3.4 17.1 3.7L12 6.5L6.9 3.7C6.4 3.4 5.8 3.6 5.6 4.1L2.5 10.7C2.3 11.2 2.5 11.8 3 12.1L12 17.3L21 12.1C21.5 11.8 21.7 11.2 21.5 10.7Z"/>
+        </svg>
+        <span>Add to MetaMask</span>
+      </button>
+
+      <!-- Connect Wallet Button -->
+      <button class="btn btn-secondary" id="btn-connect-wallet">
+        <span>Connect Wallet</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Main Dashboard Container ────────────────────────────── -->
+  <main class="container">
+
+    <!-- ── KPI Stats Banner ──────────────────────────────────── -->
+    <section class="kpi-grid">
+      <div class="kpi-card" id="kpi-block-card">
+        <div class="kpi-label">
+          <span>Current Block</span>
+          <span>⛓️</span>
+        </div>
+        <div class="kpi-value" id="kpi-block-number">#---</div>
+        <div class="kpi-sub" id="kpi-block-time">Sealing every 2.0s</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>Consensus</span>
+          <span>🛡️</span>
+        </div>
+        <div class="kpi-value" style="font-size: 1.35rem; color: #a5b4fc;">Clique PoA</div>
+        <div class="kpi-sub">EIP-225 Proof-of-Authority</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>Native Token</span>
+          <span>💎</span>
+        </div>
+        <div class="kpi-value">C99</div>
+        <div class="kpi-sub" id="kpi-validator-balance">Genesis Pool: 1,000,000 C99</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>Gas Parameters</span>
+          <span>⚡</span>
+        </div>
+        <div class="kpi-value" style="font-size: 1.35rem;" id="kpi-gas-price">1.0 Gwei</div>
+        <div class="kpi-sub" id="kpi-gas-limit">Target: 30,000,000 Gas</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>Signer / Validator</span>
+          <span>🔑</span>
+        </div>
+        <div class="kpi-value font-mono" style="font-size: 1rem; color: var(--accent-cyan);" id="kpi-validator-addr">
+          0xB562...e6b8
+        </div>
+        <div class="kpi-sub">Node 1 Mining Sealer</div>
+      </div>
+    </section>
+
+    <!-- ── Tab Navigation ────────────────────────────────────── -->
+    <nav class="tabs-header" role="tablist">
+      <button class="tab-btn active" data-tab="tab-explorer" role="tab" aria-selected="true">
+        <span>⛓️</span> Live Block Explorer
+      </button>
+      <button class="tab-btn" data-tab="tab-faucet" role="tab" aria-selected="false">
+        <span>💧</span> C99 Faucet (Dispenser)
+      </button>
+      <button class="tab-btn" data-tab="tab-contract" role="tab" aria-selected="false">
+        <span>📜</span> Storage Contract Studio
+      </button>
+      <button class="tab-btn" data-tab="tab-transfer" role="tab" aria-selected="false">
+        <span>💸</span> Native C99 Transfer
+      </button>
+      <button class="tab-btn" data-tab="tab-rpc" role="tab" aria-selected="false">
+        <span>🔬</span> JSON-RPC Console
+      </button>
+      <button class="tab-btn" data-tab="tab-arch" role="tab" aria-selected="false">
+        <span>🏗️</span> Architecture & How It Works
+      </button>
+    </nav>
+
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <!-- TAB 1: LIVE BLOCK EXPLORER                                -->
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <div class="tab-pane active" id="tab-explorer" role="tabpanel">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>Real-Time Mined Blocks Feed</span>
+            <span class="block-badge" id="block-feed-counter">Live</span>
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-dim);">
+            Click any block row to inspect raw header & trie hashes
+          </div>
+        </div>
+
+        <div class="blocks-table-wrap">
+          <table class="block-table" id="blocks-table">
+            <thead>
+              <tr>
+                <th>Block #</th>
+                <th>Age</th>
+                <th>Transactions</th>
+                <th>Gas Used</th>
+                <th>Block Hash</th>
+                <th>Sealer (Miner)</th>
+              </tr>
+            </thead>
+            <tbody id="blocks-table-body">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                  Listening for blocks from Chain99 (http://127.0.0.1:8545)...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <!-- TAB 2: C99 FAUCET (GENESIS DISPENSER)                     -->
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-faucet" role="tabpanel">
+      <div class="panel" style="max-width: 780px; margin: 0 auto;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>💧 Chain99 Native C99 Faucet</span>
+          </div>
+          <span class="badge-chain">Zero Gas Cost</span>
+        </div>
+
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+          Dispense native <strong>C99</strong> tokens directly from the pre-funded genesis pool to any account or to your connected wallet. Because Chain99 mines every 2 seconds, funds arrive nearly instantly.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label" for="faucet-recipient">Recipient Address</label>
+          <input type="text" class="form-input font-mono" id="faucet-recipient" placeholder="0x..." spellcheck="false">
+          <div class="input-hint" style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+            <span>Enter any Ethereum address or click autofill</span>
+            <button class="btn btn-secondary btn-sm" id="btn-faucet-use-connected">Use Connected Wallet</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Amount (C99)</label>
+          <input type="number" class="form-input" id="faucet-amount" value="10" min="0.1" step="0.5">
+          <div class="quick-amount-buttons">
+            <button class="btn btn-secondary btn-sm quick-amt" data-val="1">1 C99</button>
+            <button class="btn btn-secondary btn-sm quick-amt" data-val="5">5 C99</button>
+            <button class="btn btn-secondary btn-sm quick-amt" data-val="10">10 C99</button>
+            <button class="btn btn-secondary btn-sm quick-amt" data-val="50">50 C99</button>
+            <button class="btn btn-secondary btn-sm quick-amt" data-val="100">100 C99</button>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="btn-send-faucet" style="width: 100%; padding: 12px; margin-top: 10px;">
+          <span>Request C99 Tokens</span>
+        </button>
+
+        <div id="faucet-status-box" style="display: none; margin-top: 20px; padding: 16px; border-radius: var(--radius-sm); background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle);">
+          <div style="font-weight: 600; font-size: 0.88rem; margin-bottom: 4px;" id="faucet-status-title">Transaction Broadcasted</div>
+          <div class="font-mono" style="font-size: 0.8rem; color: var(--accent-cyan);" id="faucet-tx-hash">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <!-- TAB 3: SMART CONTRACT STUDIO (Storage.sol)                -->
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-contract" role="tabpanel">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>📜 Storage.sol Contract Studio</span>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary btn-sm" id="btn-deploy-contract">
+              🚀 Deploy New Storage Contract
+            </button>
+          </div>
+        </div>
+
+        <!-- Contract Status & Deployment Info -->
+        <div class="contract-status-card" id="contract-status-card">
+          <div>
+            <div style="font-size: 0.78rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Active Contract Address</div>
+            <div class="contract-address-display" id="active-contract-addr">Not deployed yet (Click 'Deploy New' above)</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary btn-sm" id="btn-copy-contract-addr" title="Copy Address">Copy</button>
+            <button class="btn btn-secondary btn-sm" id="btn-load-custom-addr" title="Load custom contract address">Load Address</button>
+          </div>
+        </div>
+
+        <!-- Contract Interaction Grid -->
+        <div class="contract-grid">
+          <!-- Read Value (Getter) -->
+          <div class="action-card">
+            <h4>
+              <span>🔍</span> Read State: <code>value()</code>
+            </h4>
+            <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 14px;">
+              Executes a read-only EVM call (<code>eth_call</code>) to fetch the stored <code>uint256</code> value without spending gas.
+            </p>
+            <div class="val-display-box">
+              <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 4px;">CURRENT STORED VALUE</div>
+              <div class="val-big-number" id="contract-current-val">--</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="contract-val-updated">Never fetched</div>
+            </div>
+            <button class="btn btn-secondary" id="btn-refresh-val" style="width: 100%;">
+              <span>↻ Refresh Value</span>
+            </button>
+          </div>
+
+          <!-- Write Value (Setter) -->
+          <div class="action-card">
+            <h4>
+              <span>✏️</span> Mutate State: <code>set(uint256)</code>
+            </h4>
+            <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 14px;">
+              Broadcasts a state-changing transaction to update the storage slot. Will be sealed into the next 2-second block.
+            </p>
+            <div class="form-group">
+              <label class="form-label" for="input-new-val">New Value (uint256)</label>
+              <input type="number" class="form-input" id="input-new-val" value="99" min="0" placeholder="e.g. 99, 1337, 42">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Signing Identity</label>
+              <select class="form-select" id="select-contract-signer">
+                <option value="validator">Genesis Validator (Node 1 Unlocked)</option>
+                <option value="injected">Connected Web3 Wallet (MetaMask)</option>
+              </select>
+            </div>
+            <button class="btn btn-cyan" id="btn-execute-set" style="width: 100%; padding: 10px;">
+              <span>Execute set() Transaction</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Solidity Source Preview -->
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-subtle);">
+          <details>
+            <summary style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; font-weight: 600;">
+              View Solidity Source Code (<code>contracts/Storage.sol</code>)
+            </summary>
+            <pre class="code-output" style="margin-top: 12px; max-height: 200px;"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract Storage {
+    uint256 public value;
+
+    function set(uint256 _value) public {
+        value = _value;
+    }
+}</code></pre>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <!-- TAB 4: DIRECT TRANSFER (WALLET TO WALLET)                 -->
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-transfer" role="tabpanel">
+      <div class="panel" style="max-width: 780px; margin: 0 auto;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>💸 Transfer Native C99 Currency</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Sender Account</label>
+          <select class="form-select" id="transfer-sender-mode">
+            <option value="validator">Genesis Validator (0xB562...e6b8)</option>
+            <option value="injected">Connected Browser Wallet (MetaMask)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="transfer-to-addr">Destination Address</label>
+          <input type="text" class="form-input font-mono" id="transfer-to-addr" placeholder="0x..." spellcheck="false">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="transfer-amount">Amount (C99)</label>
+          <input type="number" class="form-input" id="transfer-amount" value="5.0" min="0.0001" step="0.5">
+        </div>
+
+        <button class="btn btn-primary" id="btn-send-transfer" style="width: 100%; padding: 12px; margin-top: 10px;">
+          <span>Broadcast Transfer</span>
+        </button>
+
+        <div id="transfer-status-box" style="display: none; margin-top: 20px; padding: 16px; border-radius: var(--radius-sm); background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle);">
+          <div style="font-weight: 600; font-size: 0.88rem; margin-bottom: 4px;" id="transfer-status-title">Pending</div>
+          <div class="font-mono" style="font-size: 0.8rem; color: var(--accent-cyan);" id="transfer-tx-hash">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <!-- TAB 5: RAW JSON-RPC CONSOLE                               -->
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-rpc" role="tabpanel">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>🔬 Low-Level JSON-RPC Terminal</span>
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-dim);">
+            Endpoint: <code class="font-mono" style="color: var(--accent-cyan);">http://127.0.0.1:8545</code>
+          </div>
+        </div>
+
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
+          Directly query your running Geth client via JSON-RPC 2.0 specifications. Click any preset or enter custom methods.
+        </p>
+
+        <!-- Presets -->
+        <div class="rpc-presets">
+          <button class="rpc-preset-btn" data-method="eth_blockNumber" data-params="[]">eth_blockNumber</button>
+          <button class="rpc-preset-btn" data-method="net_version" data-params="[]">net_version (Chain ID)</button>
+          <button class="rpc-preset-btn" data-method="eth_mining" data-params="[]">eth_mining</button>
+          <button class="rpc-preset-btn" data-method="eth_gasPrice" data-params="[]">eth_gasPrice</button>
+          <button class="rpc-preset-btn" data-method="txpool_status" data-params="[]">txpool_status</button>
+          <button class="rpc-preset-btn" data-method="net_peerCount" data-params="[]">net_peerCount</button>
+          <button class="rpc-preset-btn" data-method="eth_syncing" data-params="[]">eth_syncing</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="rpc-input-json">JSON-RPC Payload</label>
+          <textarea class="code-editor" id="rpc-input-json" spellcheck="false">{
+  "jsonrpc": "2.0",
+  "method": "eth_blockNumber",
+  "params": [],
+  "id": 1
+}</textarea>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 18px;">
+          <button class="btn btn-cyan" id="btn-send-raw-rpc">Send Request</button>
+          <button class="btn btn-secondary" id="btn-clear-rpc-output">Clear</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Response</label>
+          <pre class="code-output" id="rpc-output-pre">Response will appear here...</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <!-- TAB 6: ARCHITECTURE & HOW IT WORKS                        -->
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-arch" role="tabpanel">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>🏗️ Chain99 Architecture & Internal Lifecycle</span>
+          </div>
+          <span class="badge-chain">EVM Specification</span>
+        </div>
+
+        <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.6; margin-bottom: 20px;">
+          Chain99 is an independent, sovereign Layer-1 blockchain built on top of the production-tested <strong>Go-Ethereum (Geth)</strong> client codebase. Here is how each component works in this system:
+        </p>
+
+        <div class="arch-diagram">
+          <div class="arch-row">
+            <div class="arch-node">
+              <span class="arch-node-badge">1. Starting Point</span>
+              <div class="arch-node-title">Independent Genesis</div>
+              <div class="arch-node-desc">
+                <code>geth/genesis.json</code> defines the chain genesis state: Chain ID <code>9999</code>, 0 hardfork activation block heights, 30M gas limit, and 1,000,000 pre-funded C99 coins allocated to the dev validator account.
+              </div>
+            </div>
+
+            <div class="arch-node">
+              <span class="arch-node-badge">2. Consensus Mechanism</span>
+              <div class="arch-node-title">Clique PoA (EIP-225)</div>
+              <div class="arch-node-desc">
+                Instead of energy-intensive Proof of Work or complex multi-client Proof of Stake, Clique PoA uses cryptography-signed headers. The authorized sealer wallet signs and commits a new block every 2 seconds on the clock.
+              </div>
+            </div>
+
+            <div class="arch-node">
+              <span class="arch-node-badge">3. State & Storage</span>
+              <div class="arch-node-title">Merkle Patricia Trie</div>
+              <div class="arch-node-desc">
+                All account balances, contract code, and contract storage slots (like <code>value</code> in <code>Storage.sol</code>) are cryptographically stored in LevelDB on disk under <code>data/node1/geth/chaindata</code>.
+              </div>
+            </div>
+          </div>
+
+          <div class="arch-row">
+            <div class="arch-node">
+              <span class="arch-node-badge">4. RPC Gateway</span>
+              <div class="arch-node-title">JSON-RPC 2.0 (:8545)</div>
+              <div class="arch-node-desc">
+                Geth exposes the standard HTTP interface providing <code>eth</code>, <code>web3</code>, <code>net</code>, and <code>txpool</code> namespaces. Any standard tool (MetaMask, Ethers.js, Foundry, Remix) connects seamlessly.
+              </div>
+            </div>
+
+            <div class="arch-node">
+              <span class="arch-node-badge">5. P2P Layer</span>
+              <div class="arch-node-title">DevP2P Networking</div>
+              <div class="arch-node-desc">
+                Nodes communicate over port 30303. Node 2 (<code>scripts/start-node2.sh</code>) connects via Node 1's cryptographic enode URL to sync blocks and broadcast transactions in a decentralized topology.
+              </div>
+            </div>
+
+            <div class="arch-node">
+              <span class="arch-node-badge">6. Client Interface</span>
+              <div class="arch-node-title">This Dashboard</div>
+              <div class="arch-node-desc">
+                Connects directly to the RPC endpoint to provide real-time block streaming, automatic wallet configuration, contract deployment, and native token faucet operations.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── Block Inspector Modal ───────────────────────────────── -->
+  <div class="modal-overlay" id="block-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div style="font-weight: 700; font-size: 1.1rem;" id="modal-block-title">Block Details</div>
+        <button class="modal-close-btn" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <pre class="code-output" id="modal-block-content" style="max-height: 480px;">Loading block data...</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast Notifications ─────────────────────────────────── -->
+  <div id="toast-container"></div>
+
+  <!-- ── Ethers.js CDN with fallback ─────────────────────────── -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
+  <!-- Main Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>

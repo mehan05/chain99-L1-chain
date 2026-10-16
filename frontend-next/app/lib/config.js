@@ -1,0 +1,32 @@
+// =============================================================
+// Chain99 — Configuration Constants
+// =============================================================
+
+export const CONFIG = {
+  RPC_URL: "http://127.0.0.1:8545",
+  FALLBACK_PROXY: "/api/rpc",
+  CHAIN_ID: 9999,
+  CHAIN_ID_HEX: "0x270f",
+  CHAIN_NAME: "Chain99 L1 Devnet",
+  TOKEN_SYMBOL: "C99",
+  TOKEN_DECIMALS: 18,
+  VALIDATOR_ADDRESS: "0xB56269Dab6a306cac2D66462D2BD8D23670fe6b8",
+  STORAGE_ABI: [
+    {
+      inputs: [{ internalType: "uint256", name: "_value", type: "uint256" }],
+      name: "set",
+      outputs: [],
+      stateMutability: "nonpayable",
+      type: "function",
+    },
+    {
+      inputs: [],
+      name: "value",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    },
+  ],
+  STORAGE_BIN:
+    "0x608060405234801561001057600080fd5b50610133806100206000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c80633fa4f24514603757806360fe47b1146051575b600080fd5b603d6069565b604051604891906090565b60405180910390f35b606760048036038101906063919060d5565b606f565b005b60005481565b8060008190555050565b6000819050919050565b608a816079565b82525050565b600060208201905060a360008301846083565b92915050565b600080fd5b60b5816079565b811460bf57600080fd5b50565b60008135905060cf8160ae565b92915050565b60006020828403121560e85760e760a9565b5b600060f48482850160c2565b9150509291505056fea2646970667358221220163ae8ac938be83a59ceee131564df56c446709d7c56817a823b60fa9c87e89964736f6c63430008130033",
+};
