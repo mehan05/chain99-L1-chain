@@ -10,7 +10,7 @@ const CONFIG = {
   CHAIN_NAME: "Chain99 L1 Devnet",
   TOKEN_SYMBOL: "C99",
   TOKEN_DECIMALS: 18,
-  VALIDATOR_ADDRESS: "0xB56269Dab6a306cac2D66462D2BD8D23670fe6b8",
+  VALIDATOR_ADDRESS: "0x86fcDCaF0a0C69C30D589e29F85a44a03A40A904",
   STORAGE_ABI: [
     {
       inputs: [{ internalType: "uint256", name: "_value", type: "uint256" }],
