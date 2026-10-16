@@ -2,11 +2,13 @@
 // Chain99 — JSON-RPC Engine
 // =============================================================
 
+import { CONFIG } from "./config";
+
 let useProxy = false;
 
 export async function rpcCall(method, params = []) {
-  const RPC_URL = "http://127.0.0.1:8545";
-  const PROXY_URL = "/api/rpc";
+  const RPC_URL = CONFIG.RPC_URL || "http://127.0.0.1:8545";
+  const PROXY_URL = CONFIG.FALLBACK_PROXY || "/api/rpc";
 
   const payload = {
     jsonrpc: "2.0",
@@ -20,7 +22,11 @@ export async function rpcCall(method, params = []) {
   try {
     const res = await fetch(targetUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+        "bypass-tunnel-reminder": "true",
+      },
       body: JSON.stringify(payload),
     });
 

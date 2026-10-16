@@ -996,7 +996,7 @@ export default function Home() {
           <div className="panel">
             <div className="panel-header">
               <div className="panel-title">🔬 Low-Level JSON-RPC Terminal</div>
-              <span className="badge-chain">Endpoint: http://127.0.0.1:8545</span>
+              <span className="badge-chain">Endpoint: {CONFIG.RPC_URL}</span>
             </div>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
               {[
@@ -1064,7 +1064,7 @@ export default function Home() {
               <div style={{ background: "rgba(255,255,255,0.02)", padding: "16px", borderRadius: "10px", border: "1px solid var(--border-subtle)" }}>
                 <h4 style={{ color: "var(--accent-emerald)", marginBottom: "8px" }}>🚀 Developer Integration</h4>
                 <ul style={{ color: "var(--text-muted)", fontSize: "0.85rem", paddingLeft: "18px", lineHeight: 1.8 }}>
-                  <li><strong>RPC Endpoint:</strong> <code>http://127.0.0.1:8545</code></li>
+                  <li><strong>RPC Endpoint:</strong> <code>{CONFIG.RPC_URL}</code></li>
                   <li><strong>Hardhat Network:</strong> <code>npx hardhat --network chain99</code></li>
                   <li><strong>MetaMask:</strong> 1-Click network injection</li>
                   <li><strong>Smart Contracts:</strong> 100% EVM bytecode compatible</li>
