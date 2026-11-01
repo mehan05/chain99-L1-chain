@@ -6,6 +6,7 @@
 const fs = require("fs");
 const path = require("path");
 const { ethers } = require("ethers");
+const bech32 = require("bech32");
 
 async function main() {
   console.log("========================================================");
@@ -49,7 +50,10 @@ async function main() {
     });
 
     // Native Bank Cosmos balance representation (Bech32 c991...)
-    const cosmosAddr = "c991" + formattedAddr.toLowerCase().substring(2);
+    const cosmosAddr = bech32.encode(
+      "c99",
+      bech32.toWords(Buffer.from(formattedAddr.slice(2).toLowerCase(), "hex"))
+    );
     bankBalances.push({
       address: cosmosAddr,
       coins: [

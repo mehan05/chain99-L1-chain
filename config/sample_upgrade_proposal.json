@@ -1,0 +1,18 @@
+{
+  "messages": [
+    {
+      "@type": "/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade",
+      "authority": "c9910d07y265gmmuvt4z0w9aw880jnsr700jtxz26p",
+      "plan": {
+        "name": "v2.0.0-halving",
+        "height": "1000000",
+        "info": "https://github.com/chain99/chain99-L1-chain/releases/tag/v2.0.0"
+      }
+    }
+  ],
+  "metadata": "ipfs://QmSoftwareUpgradeV2Proposal",
+  "deposit": "10000000000000000000ac99",
+  "title": "Chain99 v2.0.0 Coordinated Network Upgrade",
+  "summary": "Upgrades CometBFT consensus engine and adjusts block gas limits at height 1,000,000.",
+  "expedited": false
+}

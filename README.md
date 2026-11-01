@@ -1,100 +1,266 @@
-# Chain99 Devnet
+# Chain99 Layer 1 — Production Proof-of-Stake Blockchain
 
-Chain99 is a minimal working prototype of an Ethereum-compatible L1/devnet. This project demonstrates how to build and operate an independent blockchain network capable of executing EVM smart contracts.
+Chain99 is a production-grade, EVM-compatible Layer 1 blockchain engineered with **Cosmos SDK v0.50**, **CometBFT v0.38** consensus, and **Cosmos EVM v20**.
 
-## Why Geth?
-Geth (Go-Ethereum) is the official Golang implementation of the Ethereum protocol. We use Geth because it provides a robust, production-tested foundation for an EVM-compatible L1. By leveraging Geth, we avoid reinventing the wheel and gain immediate access to a mature ecosystem.
+The network features genuine stake-weighted Proof of Stake, deterministic 1-block BFT finality, an EVM Staking Precompile (`0x800`), an automated 4-validator local mesh devnet, a Next.js 16 Web3 block explorer & staking dashboard, and 100% Ethereum tooling compatibility (MetaMask, Hardhat, Ethers.js).
 
-### What Geth provides out of the box:
-* **EVM**: Complete execution environment for smart contracts.
-* **Transaction processing**: Mempool management, state transitions, and gas mechanisms.
-* **State management**: Trie-based account balances and contract storage.
-* **P2P networking**: Peer discovery and synchronization.
-* **JSON-RPC**: Standard HTTP APIs for interacting with the chain via Web3/ethers.js.
+---
 
-## What is Custom about Chain99?
-To isolate Chain99 from the Ethereum mainnet and give it its own identity, we configured:
-* **Chain Name**: Chain99
-* **Chain ID**: `9999` (to ensure transactions cannot be replayed on mainnet or testnets).
-* **Currency**: `C99` is the native token used for transactions and gas.
-* **Genesis State**: A completely independent genesis block that pre-funds a developer account.
-* **Consensus**: We use Clique (Proof of Authority) to allow a single dev node to consistently mine blocks without requiring huge amounts of computational power (Proof of Work).
+## 1. Network Parameters & Specifications
 
-## How the Chain99 Genesis Works
-The `geth/genesis.json` file defines the rules and starting state of the blockchain.
-- **Config**: Sets the `chainId: 9999` and enables Clique consensus (`period: 2` seconds per block). Pre-Merge hardforks are activated from block 0. Post-Merge hardforks are disabled for stability with Clique.
-- **Alloc**: Pre-allocates a large balance of C99 to our designated dev account (`0xB56269Dab6a306cac2D66462D2BD8D23670fe6b8`).
-- **Extradata**: Contains the initial validator address formatted for Clique consensus (allowing our dev node to produce blocks).
+| Parameter / Endpoint | Specification / Value | Notes |
+| :--- | :--- | :--- |
+| **Consensus Engine** | CometBFT v0.38.12 | 2-phase BFT (Propose → Prevote → Precommit) |
+| **Finality** | 1-Block Deterministic Finality | Finalized upon $> 2/3$ precommit signatures |
+| **Cosmos Network ID** | `chain_9999-1` | Used in CometBFT consensus & transactions |
+| **EVM Chain ID** | `9999` (`0x270f`) | Standard Ethereum JSON-RPC chain ID |
+| **Native Token Symbol** | **C99** | Base denom: `ac99` ($1\text{ C99} = 10^{18}\text{ ac99}$) |
+| **Authoritative State** | Cosmos SDK `x/staking` | Governs validator voting powers & set updates |
+| **EVM Staking Precompile** | `0x0000000000000000000000000000000000000800` | Exposes `delegate`, `undelegate`, `redelegate` to EVM |
+| **Unbonding Queue** | 14 days (devnet configurable) | Prevents flash-loan voting power attacks |
+| **Slashing Penalties** | Equivocation: 5% + tombstone | Downtime: 0.1% + temporary jail |
+| **Validator Devnet** | 4 Independent Nodes | Byzantine Fault Tolerant ($N \ge 3f + 1$, tolerates $f = 1$) |
+| **Frontend Web3 Dashboard** | [http://localhost:3000](http://localhost:3000) | Live block explorer & PoS staking portal |
+| **Validator 1 EVM JSON-RPC** | [http://127.0.0.1:8545](http://127.0.0.1:8545) | MetaMask & Ethereum Web3 HTTP endpoint |
+| **Validator 1 EVM WebSocket** | `ws://127.0.0.1:8546` | Real-time `eth_subscribe` event streams |
+| **Validator 1 CometBFT RPC** | [http://127.0.0.1:26657](http://127.0.0.1:26657) | Consensus status, block feed & validator set |
+| **Validator 1 Cosmos REST API** | [http://127.0.0.1:1317](http://127.0.0.1:1317) | Cosmos SDK module queries |
 
-## Getting Started
+---
 
-### 1. Initialize the Chain
-Run the initialization script. This creates the local database (`data/node1`) and injects the initial state from `genesis.json`.
-```bash
-./scripts/init-chain.sh
-```
+## 2. Prerequisites
 
-### 2. Start the Node
-Start the Chain99 RPC and Miner node:
-```bash
-./scripts/start-node.sh
-```
-This runs the node on HTTP port `8545` and enables mining using the pre-funded account.
+Before running the chain, ensure you have the following installed:
+- **Go**: `1.22+` (or `1.24+`) — for compiling the native `chain99d` binary
+- **Node.js**: `v18+` or `v20+` and `npm`
+- **PowerShell** (Windows) or **Bash** (Linux / macOS)
 
-### 3. Client Interaction
-We provide a Node.js/ethers.js script (`client/index.js`) to test the network.
-Make sure you run `npm install` in the `client/` folder first.
+---
 
-**What the script does:**
-* Connects to Chain99 via JSON-RPC (`http://127.0.0.1:8545`).
-* Checks the latest block and account balance.
-* Sends 10 C99 to a random address and verifies the balance.
-* Deploys a smart contract (`Storage.sol`).
-* Calls `set(99)` to modify the contract's state.
-* Reads the updated value from the contract.
+## 3. Quick Start Guide
 
-Run the test:
-```bash
-cd client
-node index.js
-```
+### Step 1: Build the Native Daemon (`chain99d`)
 
-### 4. Interactive Web Frontend & Explorer
-Chain99 includes a web frontend dashboard for live block exploration, token dispensing, and smart contract interaction.
-
-Run the dashboard:
-```bash
-./scripts/start-frontend.sh
-```
-Open **[http://localhost:3000](http://localhost:3000)** in your browser:
-* **Live Block Feed**: Watch new blocks sealed every 2 seconds with gas used and tx count.
-* **1-Click MetaMask Connection**: Automatically adds Chain99 (Chain ID `9999`, symbol `C99`).
-* **C99 Faucet**: Dispenses native C99 tokens directly from the genesis pool.
-* **Smart Contract Studio**: Deploys `Storage.sol`, mutates state with `set()`, and reads live values.
-* **JSON-RPC Terminal**: Test low-level RPC queries (`eth_blockNumber`, `net_version`, etc.).
-
-## Production Proof-of-Stake (PoS) Architecture
-
-Chain99 has transitioned its consensus roadmap to a production-grade Proof-of-Stake Layer 1 architecture powered by **CometBFT**, the **Cosmos SDK**, and the modular **Cosmos EVM**:
-
-* **Consensus Engine**: CometBFT providing 1-block deterministic finality (1–2 seconds) with Byzantine fault tolerance ($N \ge 3f + 1$).
-* **Stake-Weighted Voting Power**: Consensus power is derived directly from bonded C99 stake ($W_i = \text{Bonded\_C99}_i$).
-* **Validator Management & Delegation**: Dynamic top-50 active validator set with native protocol delegation and unbonding locks.
-* **Automated Slashing**: Dual-mode slashing for double-signing/equivocation (5% slash + permanent tombstone) and liveness downtime (0.1% slash + jail).
-* **On-Chain EVM Staking**: Managed via [`contracts/C99Staking.sol`](file:///p:/step_7/chain99-L1-chain/contracts/C99Staking.sol), enabling Web3 dApps, Hardhat, and MetaMask users to delegate, stake, and claim rewards.
-* **100% EVM Compatibility**: Standard Solidity 0.8.20 execution, Ethereum JSON-RPC on port 8545, and zero changes needed for user tooling.
-
-### Staking & Migration Tooling
-* **Staking Contract Tests**: Run the full PoS test suite:
-  ```bash
-  npx hardhat test
+* **Windows:**
+  ```powershell
+  go build -o build/chain99d.exe ./cmd/chain99d
   ```
-* **Deploy PoS Staking**:
+* **Linux / macOS:**
   ```bash
-  npx hardhat run scripts/deploy-staking.js --network hardhat
-  ```
-* **State Migration**: Transform Clique Geth genesis allocations into the target PoS genesis:
-  ```bash
-  node scripts/migrate-state.js
+  go build -o build/chain99d ./cmd/chain99d
+  chmod +x scripts/*.sh
   ```
 
+### Step 2: Initialize the 4-Validator Devnet
+
+Initializes 4 isolated validator home directories (`data/node1` through `data/node4`), generates consensus validator keys, funds accounts, issues gentx staking declarations, and writes the shared genesis:
+
+* **Windows:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts/init-devnet.ps1
+  ```
+* **Linux / macOS:**
+  ```bash
+  ./scripts/init-devnet.sh
+  ```
+
+### Step 3: Start the 4-Validator PoS Devnet
+
+Spawns all 4 validators as detached background processes connected via P2P mesh:
+
+* **Windows:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts/start-devnet.ps1
+  ```
+* **Linux / macOS:**
+  ```bash
+  ./scripts/start-devnet.sh
+  ```
+
+#### Multi-Node Port Allocation:
+- **Node 1:** CometBFT RPC: `http://127.0.0.1:26657` | EVM JSON-RPC: `http://127.0.0.1:8545` | Cosmos REST: `http://127.0.0.1:1317`
+- **Node 2:** CometBFT RPC: `http://127.0.0.1:26667` | EVM JSON-RPC: `http://127.0.0.1:8555` | Cosmos REST: `http://127.0.0.1:1319`
+- **Node 3:** CometBFT RPC: `http://127.0.0.1:26677` | EVM JSON-RPC: `http://127.0.0.1:8565` | Cosmos REST: `http://127.0.0.1:1321`
+- **Node 4:** CometBFT RPC: `http://127.0.0.1:26687` | EVM JSON-RPC: `http://127.0.0.1:8575` | Cosmos REST: `http://127.0.0.1:1323`
+
+### Step 4: Launch the Next.js 16 Web3 Explorer Dashboard
+
+* In a new terminal window:
+  ```bash
+  npm --prefix frontend-next start -- -p 3000
+  ```
+* Or in development mode:
+  ```bash
+  npm --prefix frontend-next run dev
+  ```
+Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+
+---
+
+## 4. Pre-Funded Genesis Accounts & MetaMask Setup
+
+### Adding Chain99 to MetaMask:
+* **Network Name:** Chain99 PoS L1
+* **New RPC URL:** `http://127.0.0.1:8545`
+* **Chain ID:** `9999`
+* **Currency Symbol:** `C99`
+* **Block Explorer URL:** `http://localhost:3000`
+
+### Pre-Allocated Test Accounts:
+1. **Deployer Account:**
+   * **Address:** `0x86fcDCaF0a0C69C30D589e29F85a44a03A40A904`
+   * **Private Key:** `0xd7e362021fa1878975c5cdd458d493cd2f01dd19554654eeb2a3dca4e428b62c`
+   * **Genesis Balance:** `100,000,000 C99`
+2. **Keystore Account:**
+   * **Address:** `0xB56269Dab6a306cac2D66462D2BD8D23670fe6b8`
+   * **Genesis Balance:** `100,000,000 C99`
+
+---
+
+## 5. Network Verification & Health Checks
+
+Verify your running network with the following commands:
+
+### A. Consensus Status & Block Height
+```bash
+curl http://127.0.0.1:26657/status
+```
+*(Confirms CometBFT round state, latest block height, and block hashes).*
+
+### B. Active Validator Set & Stake Voting Power
+```bash
+curl http://127.0.0.1:26657/validators
+```
+*(Returns all 4 validators and their current CometBFT voting powers).*
+
+### C. Ethereum JSON-RPC Query
+```bash
+curl -X POST http://127.0.0.1:8545 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+```
+
+---
+
+## 6. Automated Test Suites & Verification
+
+With the network running, execute any of the verification suites:
+
+### 1. Native PoS & Staking Precompile Integration Test
+Verifies 16 end-to-end assertions: CometBFT multi-validator consensus, EVM precompile delegation, unbonding queue, and consensus voting power updates:
+```bash
+node test/native-integration.test.js
+```
+
+### 2. Full EVM Compatibility & EIP-1559 Verification
+Tests smart contract deployment (`Storage.sol`), state mutation, EIP-1559 dynamic fee transactions, and WebSocket subscriptions:
+```bash
+node scripts/verify-evm.js
+```
+
+### 3. Adversarial Consensus & Byzantine Fault Tolerance Test
+Tests validator downtime resilience (1 node stopped: chain continues committing) and network partition safety (2 nodes stopped: chain safely pauses without forks):
+```bash
+node scripts/test-adverse-consensus.js
+```
+
+### 4. Production TPS & Latency Benchmark
+Runs concurrent batch transaction workloads to measure TPS, block latency, and execution times:
+```bash
+node scripts/benchmark-tps.js
+```
+
+### 5. Economic Tokenomics & Reward Solvency Simulator
+Validates treasury solvency, inflation decay curves, and validator staking yield over a 10-year horizon:
+```bash
+node scripts/simulate-economics.js
+```
+
+### 6. Hardhat Unit Tests
+```bash
+npx hardhat test
+```
+
+---
+
+## 7. EVM Staking Precompile Interface (`0x800`)
+
+Smart contracts and Ethereum wallets interact directly with the native Cosmos SDK PoS staking engine through the precompile at `0x0000000000000000000000000000000000000800`:
+
+```solidity
+interface IStakingPrecompile {
+    function delegate(
+        address delegatorAddress,
+        string calldata validatorAddress,
+        uint256 amount
+    ) external returns (int64 completionTime);
+
+    function undelegate(
+        address delegatorAddress,
+        string calldata validatorAddress,
+        uint256 amount
+    ) external returns (int64 completionTime);
+
+    function redelegate(
+        address delegatorAddress,
+        string calldata srcValidatorAddress,
+        string calldata dstValidatorAddress,
+        uint256 amount
+    ) external returns (int64 completionTime);
+
+    function delegation(
+        address delegatorAddress,
+        string calldata validatorAddress
+    ) external view returns (
+        DelegationResponse memory delegationResponse
+    );
+}
+```
+
+---
+
+## 8. Stopping & Resetting the Network
+
+### Stop All Validator Nodes
+* **Windows:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts/stop-devnet.ps1
+  ```
+* **Linux / macOS:**
+  ```bash
+  ./scripts/stop-devnet.sh
+  ```
+
+### Full State Reset (Clean Wipe)
+Deletes all node state databases and log files so you can run `init-devnet` fresh:
+* **Windows:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts/reset-devnet.ps1
+  ```
+* **Linux / macOS:**
+  ```bash
+  ./scripts/reset-devnet.sh
+  ```
+
+---
+
+## 9. Non-Blocking Node Backup & Anti-Double-Signing Recovery
+
+To create a consistent live snapshot of any validator without stopping consensus:
+
+* **Windows:**
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts/backup-node.ps1 -NodeHome data/node1 -BackupDir backups
+  ```
+* **Linux / macOS:**
+  ```bash
+  ./scripts/backup-node.sh data/node1 backups
+  ```
+
+> **Security Note:** The backup script deliberately excludes `priv_validator_state.json` and active `.lock` files to prevent validator double-signing when restoring from a snapshot on a secondary machine.
+
+---
+
+## 10. License & Credits
+
+Chain99 Layer 1 is released under the [MIT License](LICENSE). Built with Cosmos SDK, CometBFT, and Evmos.

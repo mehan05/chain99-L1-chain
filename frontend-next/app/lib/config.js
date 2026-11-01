@@ -11,10 +11,18 @@ export const CONFIG = {
   FALLBACK_PROXY: "/api/rpc",
   CHAIN_ID: 9999,
   CHAIN_ID_HEX: "0x270f",
-  CHAIN_NAME: "Chain99 L1 Devnet",
+  CHAIN_NAME: "Chain99 L1 Devnet (CometBFT PoS)",
   TOKEN_SYMBOL: "C99",
   TOKEN_DECIMALS: 18,
   VALIDATOR_ADDRESS: "0x86fcDCaF0a0C69C30D589e29F85a44a03A40A904",
+  STAKING_PRECOMPILE_ADDRESS: "0x0000000000000000000000000000000000000800",
+  STAKING_ABI: [
+    "function delegate(address delegatorAddress, string validatorAddress, uint256 amount) returns (int64 completionTime)",
+    "function undelegate(address delegatorAddress, string validatorAddress, uint256 amount) returns (int64 completionTime)",
+    "function redelegate(address delegatorAddress, string srcValidatorAddress, string dstValidatorAddress, uint256 amount) returns (int64 completionTime)",
+    "function delegation(address delegatorAddress, string validatorAddress) view returns (tuple(tuple(address delegator_address, string validator_address, string shares), tuple(string denom, uint256 amount)) delegation_response)",
+    "function unbondingDelegation(address delegatorAddress, string validatorAddress) view returns (tuple(tuple(address delegator_address, string validator_address, tuple(int64 creation_height, int64 completion_time, uint256 initial_balance, uint256 balance)[] entries)))",
+  ],
   STORAGE_ABI: [
     {
       inputs: [{ internalType: "uint256", name: "_value", type: "uint256" }],

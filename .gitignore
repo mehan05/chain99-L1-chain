@@ -5,6 +5,7 @@
 # ── Geth Binary (too large for git — downloaded by setup.sh) ─
 geth/geth
 geth/config/
+build/
 
 # ── Blockchain Runtime Data ───────────────────────────────────
 data/
@@ -48,3 +49,6 @@ yarn-error.log*
 .cache/
 dist/
 tmp/
+
+# ── Backups ───────────────────────────────────────────────────
+backups/

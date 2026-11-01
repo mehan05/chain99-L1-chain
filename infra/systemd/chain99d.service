@@ -1,0 +1,29 @@
+[Unit]
+Description=Chain99 Layer 1 Validator Node Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=chain99
+Group=chain99
+ExecStart=/usr/local/bin/chain99d start --home /var/lib/chain99 --log_level info
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65535
+LimitNPROC=65535
+MemoryAccounting=true
+CPUAccounting=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chain99d
+
+# Security Sandboxing
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,47 @@
+groups:
+  - name: chain99_consensus_alerts
+    rules:
+      - alert: ValidatorNodeDown
+        expr: up{job="chain99-validators"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Validator node {{ $labels.instance }} is DOWN"
+          description: "Validator daemon has stopped responding to Prometheus scraper for > 30s."
+
+      - alert: BlockProductionStalled
+        expr: rate(cometbft_consensus_height[1m]) == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Chain99 block production has halted!"
+          description: "Block height has not incremented in over 1 minute. Check quorum and peer status."
+
+      - alert: ValidatorMissedBlocksHigh
+        expr: cometbft_consensus_validator_missed_blocks > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Validator {{ $labels.instance }} missing blocks"
+          description: "Validator has missed > 10 blocks in the sliding window. Danger of downtime jailing."
+
+      - alert: LowPeerCount
+        expr: cometbft_p2p_peers < 3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low peer count on {{ $labels.instance }}"
+          description: "Node peer count has dropped below 3 peers."
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory utilization (> 85%) on {{ $labels.instance }}"
+
