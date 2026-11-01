@@ -13,4 +13,4 @@ echo.
 echo NOTE: Keep this window OPEN while testing your deployed app!
 echo ========================================================
 echo.
-npx --yes localtunnel --port 8545
+npx --yes localtunnel --port 8545 --subdomain chain99-mehan-rpc

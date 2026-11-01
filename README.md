@@ -73,15 +73,28 @@ Open **[http://localhost:3000](http://localhost:3000)** in your browser:
 * **Smart Contract Studio**: Deploys `Storage.sol`, mutates state with `set()`, and reads live values.
 * **JSON-RPC Terminal**: Test low-level RPC queries (`eth_blockNumber`, `net_version`, etc.).
 
-## Current Limitations
-* **Consensus Mechanism**: Chain99 currently uses PoA (Clique) which relies on trusted signers.
-* **Single Node Reliance**: By default, the network relies on a single block-producing node for the devnet.
-* **Hardforks**: Post-Merge features (like blob gas from Cancun) are not enabled in this minimal prototype to maintain stability with Clique.
+## Production Proof-of-Stake (PoS) Architecture
 
-## Path to a Production Chain99 L1
-To turn this prototype into a production-ready L1, we would need to investigate and implement:
-1. **Robust Consensus**: Transition from PoA (Clique) to a decentralized Proof-of-Stake (PoS) consensus mechanism (like Ethereum's Gasper or Tendermint). This requires a separate Consensus Client (e.g., Prysm, Lighthouse) running alongside Geth via the Engine API.
-2. **Bootnodes & P2P Network**: Setup public bootnodes for peer discovery and ensure robust protection against network-level attacks.
-3. **Economic Security**: Implement validator staking, slashing mechanisms, and tokenomics for C99.
-4. **Tooling & Infrastructure**: Deploy block explorers (e.g., Blockscout), public RPC endpoints, and a faucet for developers.
-5. **Security Audits**: Comprehensive auditing of our genesis state, network parameters, and potential custom Geth modifications.
+Chain99 has transitioned its consensus roadmap to a production-grade Proof-of-Stake Layer 1 architecture powered by **CometBFT**, the **Cosmos SDK**, and the modular **Cosmos EVM**:
+
+* **Consensus Engine**: CometBFT providing 1-block deterministic finality (1–2 seconds) with Byzantine fault tolerance ($N \ge 3f + 1$).
+* **Stake-Weighted Voting Power**: Consensus power is derived directly from bonded C99 stake ($W_i = \text{Bonded\_C99}_i$).
+* **Validator Management & Delegation**: Dynamic top-50 active validator set with native protocol delegation and unbonding locks.
+* **Automated Slashing**: Dual-mode slashing for double-signing/equivocation (5% slash + permanent tombstone) and liveness downtime (0.1% slash + jail).
+* **On-Chain EVM Staking**: Managed via [`contracts/C99Staking.sol`](file:///p:/step_7/chain99-L1-chain/contracts/C99Staking.sol), enabling Web3 dApps, Hardhat, and MetaMask users to delegate, stake, and claim rewards.
+* **100% EVM Compatibility**: Standard Solidity 0.8.20 execution, Ethereum JSON-RPC on port 8545, and zero changes needed for user tooling.
+
+### Staking & Migration Tooling
+* **Staking Contract Tests**: Run the full PoS test suite:
+  ```bash
+  npx hardhat test
+  ```
+* **Deploy PoS Staking**:
+  ```bash
+  npx hardhat run scripts/deploy-staking.js --network hardhat
+  ```
+* **State Migration**: Transform Clique Geth genesis allocations into the target PoS genesis:
+  ```bash
+  node scripts/migrate-state.js
+  ```
+

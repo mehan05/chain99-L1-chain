@@ -36,6 +36,42 @@
       "artifacts": [
         "Storage"
       ]
+    },
+    "P:\\step_7\\chain99-L1-chain\\contracts\\C99Staking.sol": {
+      "lastModificationDate": 1793520092437,
+      "contentHash": "32f8842daeb279205b0968b46bc5d3bb",
+      "sourceName": "contracts/C99Staking.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "C99Staking"
+      ]
     }
   }
 }

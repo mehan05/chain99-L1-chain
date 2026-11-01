@@ -15,4 +15,4 @@ Write-Host "NOTE: Keep this terminal OPEN while using the deployed app!" -Foregr
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host ""
 
-npx --yes localtunnel --port 8545
+npx --yes localtunnel --port 8545 --subdomain chain99-mehan-rpc

@@ -1,4 +1,4 @@
-require("@nomicfoundation/hardhat-ethers");
+require("@nomicfoundation/hardhat-toolbox");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -12,6 +12,12 @@ module.exports = {
     }
   },
   networks: {
+    hardhat: {
+      accounts: {
+        count: 10,
+        accountsBalance: "1000000000000000000000000" // 1,000,000 C99 per test account
+      }
+    },
     chain99: {
       url: "http://127.0.0.1:8545",
       chainId: 9999,
@@ -21,3 +27,4 @@ module.exports = {
     }
   }
 };
+

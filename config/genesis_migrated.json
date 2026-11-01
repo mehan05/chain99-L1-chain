@@ -1,0 +1,186 @@
+{
+  "genesis_time": "2026-11-01T00:00:00Z",
+  "chain_id": "chain99_9999-1",
+  "initial_height": "1",
+  "consensus_params": {
+    "block": {
+      "max_bytes": "22020096",
+      "max_gas": "30000000",
+      "time_iota_ms": "1000"
+    },
+    "evidence": {
+      "max_age_num_blocks": "100000",
+      "max_age_duration": "172800000000000",
+      "max_bytes": "1048576"
+    },
+    "validator": {
+      "pub_key_types": [
+        "ed25519"
+      ]
+    },
+    "version": {
+      "app": "1"
+    }
+  },
+  "app_state": {
+    "bank": {
+      "params": {
+        "send_enabled": [],
+        "default_send_enabled": true
+      },
+      "balances": [
+        {
+          "address": "c99186fcdcaf0a0c69c30d589e29f85a44a03a40a904",
+          "coins": [
+            {
+              "denom": "ac99",
+              "amount": "1000000000000000000000000"
+            }
+          ]
+        },
+        {
+          "address": "c991b56269dab6a306cac2d66462d2bd8d23670fe6b8",
+          "coins": [
+            {
+              "denom": "ac99",
+              "amount": "1000000000000000000000000"
+            }
+          ]
+        }
+      ],
+      "supply": [
+        {
+          "denom": "ac99",
+          "amount": "2000000000000000000000000"
+        }
+      ],
+      "denom_metadata": [
+        {
+          "description": "Chain99 Native Token",
+          "denom_units": [
+            {
+              "denom": "ac99",
+              "exponent": 0,
+              "aliases": [
+                "atto-c99",
+                "wei"
+              ]
+            },
+            {
+              "denom": "mc99",
+              "exponent": 12,
+              "aliases": [
+                "micro-c99"
+              ]
+            },
+            {
+              "denom": "C99",
+              "exponent": 18,
+              "aliases": [
+                "c99"
+              ]
+            }
+          ],
+          "base": "ac99",
+          "display": "C99",
+          "name": "Chain99",
+          "symbol": "C99"
+        }
+      ]
+    },
+    "staking": {
+      "params": {
+        "unbonding_time": "1209600s",
+        "max_validators": 50,
+        "max_entries": 7,
+        "historical_entries": 10000,
+        "bond_denom": "ac99",
+        "min_commission_rate": "0.050000000000000000"
+      },
+      "last_total_power": "20000",
+      "last_validator_powers": [],
+      "validators": [],
+      "delegations": [],
+      "unbonding_delegations": [],
+      "redelegations": [],
+      "exported": false
+    },
+    "slashing": {
+      "params": {
+        "signed_blocks_window": "10000",
+        "min_signed_per_window": "0.500000000000000000",
+        "downtime_jail_duration": "600s",
+        "slash_fraction_double_sign": "0.050000000000000000",
+        "slash_fraction_downtime": "0.001000000000000000"
+      },
+      "signing_infos": [],
+      "missed_blocks": []
+    },
+    "distribution": {
+      "params": {
+        "community_tax": "0.020000000000000000",
+        "base_proposer_reward": "0.010000000000000000",
+        "bonus_proposer_reward": "0.040000000000000000",
+        "withdraw_addr_enabled": true
+      },
+      "fee_pool": {
+        "community_pool": []
+      }
+    },
+    "evm": {
+      "params": {
+        "evm_denom": "ac99",
+        "enable_create": true,
+        "enable_call": true,
+        "extra_eips": [],
+        "chain_config": {
+          "homestead_block": "0",
+          "dao_fork_block": "0",
+          "dao_fork_support": true,
+          "eip150_block": "0",
+          "eip150_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "eip155_block": "0",
+          "eip158_block": "0",
+          "byzantium_block": "0",
+          "constantinople_block": "0",
+          "petersburg_block": "0",
+          "istanbul_block": "0",
+          "muir_glacier_block": "0",
+          "berlin_block": "0",
+          "london_block": "0",
+          "arrow_glacier_block": "0",
+          "gray_glacier_block": "0",
+          "merge_netsplit_block": "0",
+          "shanghai_block": "0",
+          "cancun_block": "0"
+        }
+      },
+      "accounts": [
+        {
+          "address": "0x86fcDCaF0a0C69C30D589e29F85a44a03A40A904",
+          "code": "",
+          "storage": [],
+          "balance": "1000000000000000000000000"
+        },
+        {
+          "address": "0xB56269Dab6a306cac2D66462D2BD8D23670fe6b8",
+          "code": "",
+          "storage": [],
+          "balance": "1000000000000000000000000"
+        }
+      ]
+    },
+    "feemarket": {
+      "params": {
+        "no_base_fee": false,
+        "base_fee_change_denominator": 8,
+        "elasticity_multiplier": 2,
+        "enable_height": "0",
+        "base_fee": "1000000000",
+        "min_gas_price": "0.000000000000000000",
+        "min_gas_multiplier": "0.000000000000000000"
+      },
+      "block_gas": "0"
+    }
+  }
+}
