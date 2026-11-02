@@ -147,8 +147,9 @@ export default function Home() {
   }, [isLiveFeed]);
 
   const fetchBlocks = async (topBlockNum, isLive) => {
+    if (!topBlockNum || topBlockNum < 1) return;
     const top = topBlockNum;
-    const bottom = Math.max(0, top - (pageSize - 1));
+    const bottom = Math.max(1, top - (pageSize - 1));
     const requests = [];
     for (let i = top; i >= bottom; i--) {
       const hex = "0x" + i.toString(16);
@@ -156,7 +157,16 @@ export default function Home() {
     }
     try {
       const fetched = await Promise.all(requests);
-      setBlocks(fetched.filter(Boolean));
+      // Deduplicate blocks by hash to guarantee unique keys and prevent duplicate rows
+      const seen = new Set();
+      const unique = [];
+      for (const b of fetched) {
+        if (b && b.hash && !seen.has(b.hash)) {
+          seen.add(b.hash);
+          unique.push(b);
+        }
+      }
+      setBlocks(unique);
       setCurrentTopBlock(top);
     } catch (err) {
       console.error("Failed to fetch blocks:", err);
@@ -233,7 +243,8 @@ export default function Home() {
   // ── Pagination Actions ──────────────────────────────────────
   const handleOlderBlocks = () => {
     setIsLiveFeed(false);
-    const newTop = Math.max(0, (currentTopBlock ?? latestBlock ?? 0) - pageSize);
+    const currentTop = currentTopBlock ?? latestBlock ?? 1;
+    const newTop = Math.max(1, currentTop - pageSize);
     fetchBlocks(newTop, false);
   };
 
@@ -257,15 +268,15 @@ export default function Home() {
 
   const handleGenesisBlock = () => {
     setIsLiveFeed(false);
-    fetchBlocks(Math.min(latestBlock ?? 0, pageSize - 1), false);
+    fetchBlocks(Math.min(latestBlock ?? 1, pageSize), false);
     showToast("Loaded genesis block window.", "info");
   };
 
   const handleJumpBlock = (e) => {
     e.preventDefault();
     const target = parseInt(jumpBlockInput, 10);
-    if (isNaN(target) || target < 0 || target > (latestBlock ?? 0)) {
-      showToast(`Invalid block. Enter a number between 0 and ${latestBlock}.`, "error");
+    if (isNaN(target) || target < 1 || target > (latestBlock ?? 1)) {
+      showToast(`Invalid block. Enter a number between 1 and ${latestBlock ?? 1}.`, "error");
       return;
     }
     setIsLiveFeed(false);
@@ -349,6 +360,67 @@ export default function Home() {
       showToast(`Connection failed: ${err.message}`, "error");
     }
   };
+
+  // ── Auto-Detect & Listen for MetaMask Account / Chain Changes ──
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const setupEthereumListeners = () => {
+      if (!window.ethereum) return;
+
+      const handleAccountsChanged = (accounts) => {
+        if (accounts && accounts.length > 0) {
+          const newAddress = accounts[0];
+          setConnectedAddress(newAddress);
+          setFaucetRecipient(newAddress);
+          showToast(`Account switched: ${truncateHash(newAddress, 6, 4)}`, "info");
+        } else {
+          setConnectedAddress(null);
+          setFaucetRecipient("");
+          showToast("Wallet disconnected.", "warning");
+        }
+      };
+
+      const handleChainChanged = () => {
+        window.location.reload();
+      };
+
+      // Check if user is already connected in MetaMask
+      window.ethereum
+        .request({ method: "eth_accounts" })
+        .then((accounts) => {
+          if (accounts && accounts.length > 0) {
+            setConnectedAddress(accounts[0]);
+            setFaucetRecipient((prev) => (prev ? prev : accounts[0]));
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to check connected accounts:", err);
+        });
+
+      window.ethereum.on("accountsChanged", handleAccountsChanged);
+      window.ethereum.on("chainChanged", handleChainChanged);
+
+      return () => {
+        if (window.ethereum?.removeListener) {
+          window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+          window.ethereum.removeListener("chainChanged", handleChainChanged);
+        }
+      };
+    };
+
+    if (window.ethereum) {
+      return setupEthereumListeners();
+    } else {
+      const handleInitialized = () => {
+        setupEthereumListeners();
+      };
+      window.addEventListener("ethereum#initialized", handleInitialized, { once: true });
+      return () => {
+        window.removeEventListener("ethereum#initialized", handleInitialized);
+      };
+    }
+  }, []);
 
   // ── Native PoS Staking via EVM Precompile (0x800) ───────────
   const executeStakingAction = async () => {
@@ -670,12 +742,12 @@ export default function Home() {
   };
 
   // ── Render Helpers ──────────────────────────────────────────
-  const totalPages = Math.max(1, Math.ceil(((latestBlock ?? 0) + 1) / pageSize));
+  const totalPages = Math.max(1, Math.ceil((latestBlock ?? 1) / pageSize));
   const currentPage = Math.max(
     1,
-    Math.floor(((latestBlock ?? 0) - (currentTopBlock ?? (latestBlock ?? 0))) / pageSize) + 1
+    Math.floor(((latestBlock ?? 1) - (currentTopBlock ?? (latestBlock ?? 1))) / pageSize) + 1
   );
-  const bottomBlock = Math.max(0, (currentTopBlock ?? (latestBlock ?? 0)) - (pageSize - 1));
+  const bottomBlock = Math.max(1, (currentTopBlock ?? (latestBlock ?? 1)) - (pageSize - 1));
 
   return (
     <div style={{ minHeight: "100vh", paddingBottom: "60px" }}>
@@ -707,6 +779,34 @@ export default function Home() {
             ></span>
             <span>{isNodeOnline ? "CometBFT Online · ~1.4s Finality" : "Nodes Offline"}</span>
           </div>
+
+          <a
+            href="/stress-test"
+            className="btn btn-sm"
+            style={{
+              background: "linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.25))",
+              border: "1px solid rgba(16, 185, 129, 0.4)",
+              color: "#fff",
+              fontWeight: 700,
+            }}
+          >
+            <span>⚡</span>
+            <span>Stress Testing</span>
+          </a>
+
+          <a
+            href="/architecture"
+            className="btn btn-sm"
+            style={{
+              background: "linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.25))",
+              border: "1px solid rgba(6, 182, 212, 0.4)",
+              color: "#fff",
+              fontWeight: 700,
+            }}
+          >
+            <span>🏗️</span>
+            <span>Architecture Explorer</span>
+          </a>
 
           <button className="btn btn-metamask btn-sm" onClick={addChain99ToMetaMask}>
             <span>🦊</span>
@@ -855,8 +955,8 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  {blocks.map((b) => (
-                    <tr key={b.hash} onClick={() => inspectBlock(b)} style={{ cursor: "pointer" }}>
+                  {blocks.map((b, idx) => (
+                    <tr key={b.hash ? `${b.hash}-${b.number || idx}` : `block-${idx}`} onClick={() => inspectBlock(b)} style={{ cursor: "pointer" }}>
                       <td>
                         <span className="badge" style={{ background: "rgba(99, 102, 241, 0.15)", color: "var(--accent-primary)" }}>
                           #{hexToDecimal(b.number)}
@@ -883,7 +983,7 @@ export default function Home() {
             {/* Pagination Controls */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px" }}>
               <div style={{ display: "flex", gap: "8px" }}>
-                <button className="btn btn-secondary btn-sm" onClick={handleOlderBlocks}>
+                <button className="btn btn-secondary btn-sm" onClick={handleOlderBlocks} disabled={bottomBlock <= 1}>
                   ◀ Older Blocks
                 </button>
                 <button className="btn btn-secondary btn-sm" onClick={handleNewerBlocks} disabled={isLiveFeed}>
@@ -1104,7 +1204,22 @@ export default function Home() {
               Dispense native <strong>C99</strong> tokens directly from the pre-funded genesis pool to your connected wallet or any address.
             </p>
             <div className="form-group">
-              <label className="form-label">Recipient Ethereum Address</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Recipient Ethereum Address</label>
+                {connectedAddress && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: "2px 8px", fontSize: "0.75rem" }}
+                    onClick={() => {
+                      setFaucetRecipient(connectedAddress);
+                      showToast("Set recipient to connected MetaMask account.", "info");
+                    }}
+                  >
+                    Use Connected Wallet ({truncateHash(connectedAddress, 6, 4)})
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 className="form-input font-mono"
@@ -1334,7 +1449,38 @@ export default function Home() {
           <div className="panel">
             <div className="panel-header">
               <div className="panel-title">🏗️ Chain99 Layer 1 Architecture & Consensus</div>
-              <span className="badge-chain">Production PoS</span>
+              <a href="/architecture" className="btn btn-primary btn-sm">
+                <span>Launch Interactive Explorer</span>
+                <span>→</span>
+              </a>
+            </div>
+
+            <div
+              style={{
+                background: "linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(6, 182, 212, 0.12))",
+                border: "1px solid rgba(6, 182, 212, 0.4)",
+                borderRadius: "14px",
+                padding: "20px 24px",
+                marginBottom: "20px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "14px",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#fff", marginBottom: "4px" }}>
+                  Explore the Complete Interactive Architecture Page
+                </div>
+                <div style={{ fontSize: "0.85rem", color: "#cbd5e1", maxWidth: "680px", lineHeight: 1.5 }}>
+                  Step through interactive simulations of the 9-step transaction lifecycle, live CometBFT 2-phase consensus, dynamic validator voting-power calculator, EVM Staking Precompile at <code>0x...0800</code>, and slashing defenses.
+                </div>
+              </div>
+              <a href="/architecture" className="btn btn-cyan">
+                <span>Open /architecture</span>
+                <span>→</span>
+              </a>
             </div>
             <p style={{ color: "var(--text-muted)", lineHeight: 1.7, marginBottom: "16px" }}>
               Chain99 is a production-grade Layer 1 blockchain engineered with <strong>Cosmos SDK v0.50</strong>, <strong>CometBFT v0.38</strong> consensus, and <strong>Cosmos EVM v20</strong>. Staking state is authoritatively held in <code>x/staking</code>, feeding dynamic validator set updates directly to CometBFT consensus engine for deterministic single-block finality.
@@ -1480,7 +1626,7 @@ export default function Home() {
                     </div>
                   ) : (
                     modalTxs.map((tx, idx) => (
-                      <div key={tx.hash} className="tx-card" style={{ padding: "12px", borderBottom: "1px solid var(--border-subtle)", marginBottom: "8px" }}>
+                      <div key={tx.hash ? `${tx.hash}-${idx}` : `tx-${idx}`} className="tx-card" style={{ padding: "12px", borderBottom: "1px solid var(--border-subtle)", marginBottom: "8px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                             <span className="badge" style={{ background: "rgba(99, 102, 241, 0.2)", color: "var(--accent-primary)", fontSize: "0.72rem", padding: "2px 8px", borderRadius: "4px" }}>

@@ -99,10 +99,33 @@ async function main() {
     run(`go build -o "${BIN_PATH}" ./cmd/chain99d`);
   }
 
+  // 0. Ensure all running node processes are stopped to release database file locks
+  console.log("\n0. Ensuring no previous validator instances are running...");
+  try {
+    if (process.platform === "win32") {
+      execSync("taskkill /F /IM chain99d.exe", { stdio: "ignore" });
+    } else {
+      execSync("pkill -9 -f chain99d", { stdio: "ignore" });
+    }
+  } catch (e) {
+    // No existing processes running
+  }
+  await new Promise((r) => setTimeout(r, 1200));
+
   // 1. Reset data directory
   console.log("\n1. Resetting data directory...");
   if (fs.existsSync(DATA_DIR)) {
-    fs.rmSync(DATA_DIR, { recursive: true, force: true });
+    let retries = 5;
+    while (retries > 0) {
+      try {
+        fs.rmSync(DATA_DIR, { recursive: true, force: true });
+        break;
+      } catch (err) {
+        retries--;
+        if (retries === 0) throw err;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
   }
   fs.mkdirSync(DATA_DIR, { recursive: true });
 

@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start"
   },
   "dependencies": {
+    "ethers": "^6.17.0",
+    "lucide-react": "^1.66.0",
     "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0"

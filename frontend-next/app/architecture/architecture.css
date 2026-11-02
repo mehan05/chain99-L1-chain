@@ -1,0 +1,829 @@
+/* ==========================================================================
+   Chain99 Interactive Blockchain Architecture Explorer — Stylesheet
+   Dark engineering aesthetic, SVG connectors, flow animations, and interactive controls
+   ========================================================================== */
+
+/* ── Technical Grid & Canvas ────────────────────────────────────────────── */
+.arch-page {
+  min-height: 100vh;
+  background-color: #07090e;
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 100% 50%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+  color: #f1f5f9;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  padding-bottom: 80px;
+}
+
+.arch-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Top Hero & Mission Header ──────────────────────────────────────────── */
+.arch-hero {
+  padding: 48px 0 32px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 32px;
+}
+
+.arch-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #a5b4fc;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+}
+
+.arch-title {
+  font-size: 2.75rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.arch-subtitle {
+  font-size: 1.15rem;
+  color: #94a3b8;
+  max-width: 820px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.arch-kpi-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.arch-kpi-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(18, 22, 34, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  backdrop-filter: blur(8px);
+}
+
+.arch-kpi-pill strong {
+  color: #fff;
+}
+
+.arch-kpi-pill code {
+  color: #06b6d4;
+  background: rgba(6, 182, 212, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.76rem;
+}
+
+/* ── Sticky Sub-Navigation ──────────────────────────────────────────────── */
+.arch-nav-sticky {
+  position: sticky;
+  top: 72px;
+  z-index: 40;
+  background: rgba(7, 9, 14, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 36px;
+  padding: 8px 0;
+}
+
+.arch-nav-scroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none;
+}
+.arch-nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.arch-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.arch-nav-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.arch-nav-item.active {
+  color: #fff;
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* ── Section Wrapper ────────────────────────────────────────────────────── */
+.arch-section {
+  scroll-margin-top: 130px;
+  background: rgba(15, 18, 28, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 40px;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+}
+
+.arch-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.5), rgba(6, 182, 212, 0.5), transparent);
+}
+
+.arch-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 18px;
+}
+
+.arch-section-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #06b6d4;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.arch-section-title {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.arch-section-desc {
+  font-size: 0.92rem;
+  color: #94a3b8;
+  max-width: 900px;
+  line-height: 1.6;
+}
+
+/* ── Controls Toolbar ───────────────────────────────────────────────────── */
+.sim-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(10, 13, 22, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  padding: 12px 18px;
+  border-radius: 14px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.sim-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sim-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.sim-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sim-btn.primary {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+}
+
+.sim-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4f46e5, #4338ca);
+}
+
+.sim-btn.danger {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #fda4af;
+}
+
+.sim-btn.danger:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.25);
+  color: #fff;
+}
+
+.sim-speed-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sim-speed-btn {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.sim-speed-btn.active {
+  background: rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+}
+
+/* ── Interactive Architecture Diagram (Section A) ───────────────────────── */
+.arch-diagram-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .arch-diagram-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nodes-flow-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+.arch-node-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(20, 25, 40, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.arch-node-card:hover {
+  background: rgba(28, 35, 56, 0.85);
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateX(4px);
+}
+
+.arch-node-card.selected {
+  background: rgba(30, 39, 64, 0.95);
+  border-color: #06b6d4;
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+}
+
+.arch-node-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.arch-connector-v {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 24px;
+  margin: -6px 0;
+  position: relative;
+}
+
+.connector-line-v {
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(99, 102, 241, 0.5), rgba(6, 182, 212, 0.5));
+  position: relative;
+}
+
+.connector-pulse-v {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #06b6d4;
+  box-shadow: 0 0 8px #06b6d4;
+  left: -2px;
+  animation: pulseDown 1.8s infinite linear;
+}
+
+@keyframes pulseDown {
+  0% { top: 0%; opacity: 0; }
+  30% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* ── Inspector Drawer / Card ────────────────────────────────────────────── */
+.inspector-panel {
+  background: rgba(12, 16, 26, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  position: sticky;
+  top: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+
+.inspector-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.inspector-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #06b6d4;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.inspector-field {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+
+/* ── Stepper Track & Timeline (Section B) ────────────────────────────────── */
+.stepper-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px 0 20px 0;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.step-indicator-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  min-width: 90px;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.step-indicator-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.82rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+  transition: all 0.25s;
+}
+
+.step-indicator-btn.active .step-circle {
+  background: #6366f1;
+  border-color: #818cf8;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.5);
+  transform: scale(1.1);
+}
+
+.step-indicator-btn.completed .step-circle {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #34d399;
+}
+
+.step-label-text {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-align: center;
+  max-width: 95px;
+  line-height: 1.2;
+}
+
+.step-indicator-btn.active .step-label-text {
+  color: #fff;
+}
+
+/* ── Live Step Presentation Stage ───────────────────────────────────────── */
+.step-stage-card {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 28px;
+  background: rgba(10, 13, 22, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 28px;
+  min-height: 360px;
+}
+
+@media (max-width: 900px) {
+  .step-stage-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+.step-anim-visual {
+  background: rgba(18, 22, 36, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  min-height: 280px;
+}
+
+/* ── Balance Animation Card ─────────────────────────────────────────────── */
+.balance-change-box {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  justify-content: space-around;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.balance-account {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.balance-val {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  color: #fff;
+  transition: all 0.5s ease;
+}
+
+.balance-val.decreasing {
+  color: #f43f5e;
+  transform: scale(1.05);
+}
+
+.balance-val.increasing {
+  color: #10b981;
+  transform: scale(1.05);
+}
+
+/* ── Transaction Receipt Mockup ─────────────────────────────────────────── */
+.tx-receipt-card {
+  width: 100%;
+  background: #080a10;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.12);
+  font-family: var(--font-mono, monospace);
+}
+
+.tx-receipt-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.tx-receipt-row:last-child {
+  border-bottom: none;
+}
+
+/* ── Consensus Quorum Visualizer (Section C & D) ─────────────────────────── */
+.quorum-progress-container {
+  background: rgba(10, 13, 22, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.quorum-bar-track {
+  position: relative;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  overflow: visible;
+  margin: 18px 0 10px 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quorum-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #6366f1, #06b6d4);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
+}
+
+.quorum-bar-fill.success {
+  background: linear-gradient(90deg, #10b981, #06b6d4);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.5);
+}
+
+.quorum-threshold-marker {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 2px;
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  z-index: 5;
+}
+
+.quorum-threshold-label {
+  position: absolute;
+  top: -24px;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #f59e0b;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  white-space: nowrap;
+}
+
+/* ── Validators Grid Cards ──────────────────────────────────────────────── */
+.validators-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.validator-node-box {
+  background: rgba(18, 22, 34, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 18px;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.validator-node-box.offline {
+  opacity: 0.5;
+  filter: grayscale(0.8);
+  border-color: rgba(244, 63, 94, 0.3);
+}
+
+.validator-node-box.proposer {
+  border-color: #f59e0b;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
+}
+
+.validator-node-box.prevoted {
+  border-color: #06b6d4;
+}
+
+.validator-node-box.precommitted {
+  border-color: #10b981;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+
+.validator-node-box.tombstoned {
+  border-color: #f43f5e;
+  background: rgba(40, 10, 18, 0.8);
+}
+
+.validator-node-box.jailed {
+  border-color: #f59e0b;
+  background: rgba(40, 25, 10, 0.8);
+}
+
+/* ── Slider Styling ─────────────────────────────────────────────────────── */
+.custom-range-slider {
+  width: 100%;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+/* ── Flowchart Cards (Section E & F) ────────────────────────────────────── */
+.flowchart-step-card {
+  background: rgba(20, 24, 38, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.flowchart-step-card:hover {
+  border-color: #6366f1;
+  background: rgba(28, 34, 52, 0.95);
+  transform: translateY(-2px);
+}
+
+.flowchart-step-card.active {
+  border-color: #06b6d4;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.3);
+  background: rgba(30, 38, 60, 1);
+}
+
+/* ── Full Architecture Canvas (Section G) ───────────────────────────────── */
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 640px;
+  background: #080a11;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.canvas-toolbar {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+  background: rgba(10, 13, 22, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px;
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+}
+
+.canvas-btn {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.canvas-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
+@keyframes dashGlow {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+.anim-dash {
+  stroke-dasharray: 6, 6;
+  animation: dashGlow 2s linear infinite;
+}
+
+@keyframes pulseBlock {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+  50% { transform: scale(1.02); box-shadow: 0 0 25px 6px rgba(16, 185, 129, 0.4); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.committed-pulse {
+  animation: pulseBlock 2s infinite ease-in-out;
+}
+
+/* ── Responsive Behavior ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .arch-title {
+    font-size: 2rem;
+  }
+  .arch-section {
+    padding: 20px 16px;
+  }
+  .sim-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ── Reduced Motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
