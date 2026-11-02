@@ -4,7 +4,16 @@
   "description": "Chain99 is a minimal working prototype of an Ethereum-compatible L1/devnet. This project demonstrates how to build and operate an independent blockchain network capable of executing EVM smart contracts.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "hardhat test",
+    "test:integration": "node test/native-integration.test.js",
+    "test:evm": "node scripts/verify-evm.js",
+    "test:benchmark": "node scripts/benchmark-tps.js",
+    "init:devnet": "node scripts/init-devnet.js",
+    "start:devnet": "node scripts/start-devnet.js",
+    "deploy:storage": "hardhat run scripts/deploy.js --network chain99",
+    "deploy:staking": "hardhat run scripts/deploy-staking.js --network chain99",
+    "frontend:dev": "npm --prefix frontend-next run dev",
+    "frontend:build": "npm --prefix frontend-next run build"
   },
   "repository": {
     "type": "git",

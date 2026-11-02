@@ -7,6 +7,7 @@
 import { execSync } from "child_process";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 
 export const VALIDATOR_NODES = [
   {
@@ -97,17 +98,30 @@ export async function getNodeStatuses() {
       let isRpcReachable = false;
       let latestBlockHeight = 0;
       let catchingUp = false;
+      let mempoolCount = 0;
+      let mempoolBytes = 0;
 
       try {
-        const res = await fetch(`http://127.0.0.1:${v.cometPort}/status`, {
-          cache: "no-store",
-          signal: AbortSignal.timeout(1200),
-        }).then((r) => r.json());
+        const [statusRes, mempoolRes] = await Promise.all([
+          fetch(`http://127.0.0.1:${v.cometPort}/status`, {
+            cache: "no-store",
+            signal: AbortSignal.timeout(1200),
+          }).then((r) => r.json()).catch(() => null),
+          fetch(`http://127.0.0.1:${v.cometPort}/num_unconfirmed_txs`, {
+            cache: "no-store",
+            signal: AbortSignal.timeout(1200),
+          }).then((r) => r.json()).catch(() => null),
+        ]);
 
-        if (res?.result?.sync_info) {
+        if (statusRes?.result?.sync_info) {
           isRpcReachable = true;
-          latestBlockHeight = parseInt(res.result.sync_info.latest_block_height || "0", 10);
-          catchingUp = res.result.sync_info.catching_up || false;
+          latestBlockHeight = parseInt(statusRes.result.sync_info.latest_block_height || "0", 10);
+          catchingUp = statusRes.result.sync_info.catching_up || false;
+        }
+
+        if (mempoolRes?.result) {
+          mempoolCount = parseInt(mempoolRes.result.n_txs || "0", 10);
+          mempoolBytes = parseInt(mempoolRes.result.total_bytes || "0", 10);
         }
       } catch {
         isRpcReachable = false;
@@ -120,11 +134,71 @@ export async function getNodeStatuses() {
         pid,
         latestBlockHeight,
         catchingUp,
+        mempoolCount,
+        mempoolBytes,
       };
     })
   );
 
   return statuses;
+}
+
+export async function getNodeMempoolTxs(nodeId, limit = 30) {
+  const target = VALIDATOR_NODES.find((v) => v.id === nodeId);
+  if (!target) {
+    throw new Error(`Validator ${nodeId} not recognized`);
+  }
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${target.cometPort}/unconfirmed_txs?limit=${limit}`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(2000),
+    }).then((r) => r.json());
+
+    if (!res?.result) {
+      return {
+        nodeId,
+        moniker: target.moniker,
+        cometPort: target.cometPort,
+        count: 0,
+        totalBytes: 0,
+        txs: [],
+      };
+    }
+
+    const rawTxs = res.result.txs || [];
+    const formatted = rawTxs.map((b64, idx) => {
+      const buf = Buffer.from(b64, "base64");
+      const hash = crypto.createHash("sha256").update(buf).digest("hex").toUpperCase();
+      return {
+        index: idx + 1,
+        hash,
+        sizeBytes: buf.length,
+        rawBase64: b64,
+      };
+    });
+
+    return {
+      nodeId,
+      name: target.name,
+      moniker: target.moniker,
+      cometPort: target.cometPort,
+      count: parseInt(res.result.n_txs || "0", 10),
+      totalBytes: parseInt(res.result.total_bytes || "0", 10),
+      txs: formatted,
+    };
+  } catch (err) {
+    return {
+      nodeId,
+      name: target.name,
+      moniker: target.moniker,
+      cometPort: target.cometPort,
+      count: 0,
+      totalBytes: 0,
+      error: err.message,
+      txs: [],
+    };
+  }
 }
 
 export async function stopNode(nodeId) {

@@ -27,6 +27,10 @@ import {
   BarChart2,
   Check,
   Power,
+  Copy,
+  ExternalLink,
+  Search,
+  ArrowRight,
 } from "lucide-react";
 
 import "./stress-test.css";
@@ -198,6 +202,21 @@ export default function StressTestPage() {
   const [timeSeries, setTimeSeries] = useState([]);
   const [recentTxs, setRecentTxs] = useState([]);
   const [incidents, setIncidents] = useState([]);
+  const [selectedTx, setSelectedTx] = useState(null);
+  const [selectedIncident, setSelectedIncident] = useState(null);
+  const [copiedField, setCopiedField] = useState(null);
+
+  const copyToClipboard = (text, fieldKey) => {
+    if (!text) return;
+    try {
+      navigator.clipboard.writeText(text);
+      setCopiedField(fieldKey);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
   const [report, setReport] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -215,6 +234,8 @@ export default function StressTestPage() {
       votingPercent: 20.8,
       isOnline: true,
       isPrimaryRpc: true,
+      mempoolCount: 0,
+      mempoolBytes: 0,
     },
     {
       id: "node2",
@@ -227,6 +248,8 @@ export default function StressTestPage() {
       votingPercent: 39.6,
       isOnline: true,
       isPrimaryRpc: false,
+      mempoolCount: 0,
+      mempoolBytes: 0,
     },
     {
       id: "node3",
@@ -239,6 +262,8 @@ export default function StressTestPage() {
       votingPercent: 19.8,
       isOnline: true,
       isPrimaryRpc: false,
+      mempoolCount: 0,
+      mempoolBytes: 0,
     },
     {
       id: "node4",
@@ -251,9 +276,30 @@ export default function StressTestPage() {
       votingPercent: 19.8,
       isOnline: true,
       isPrimaryRpc: false,
+      mempoolCount: 0,
+      mempoolBytes: 0,
     },
   ]);
   const [togglingNodeId, setTogglingNodeId] = useState(null);
+
+  // Per-Validator Mempool Inspector Modal State
+  const [inspectingMempoolNode, setInspectingMempoolNode] = useState(null);
+  const [mempoolTxsData, setMempoolTxsData] = useState(null);
+  const [loadingMempool, setLoadingMempool] = useState(false);
+
+  const inspectNodeMempool = async (node) => {
+    setInspectingMempoolNode(node);
+    setLoadingMempool(true);
+    try {
+      const res = await fetch(`/api/validators/mempool?nodeId=${node.id}&limit=30`);
+      const data = await res.json();
+      setMempoolTxsData(data);
+    } catch {
+      setMempoolTxsData(null);
+    } finally {
+      setLoadingMempool(false);
+    }
+  };
 
   // ── Apply Predefined Profile ────────────────────────────────────────────────
   const applyProfile = (prof) => {
@@ -323,17 +369,24 @@ export default function StressTestPage() {
       } catch {}
     }, 1200);
 
-    // Initial query of validator node process statuses
-    fetch("/api/validators/toggle")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.nodes) setValidatorNodes(d.nodes);
-      })
-      .catch(() => {});
+    // Initial query & active polling of validator node process statuses & mempools
+    const fetchNodes = async () => {
+      try {
+        const r = await fetch("/api/validators/toggle", { cache: "no-store" });
+        if (r.ok) {
+          const d = await r.json();
+          if (d?.nodes && d.nodes.length > 0) setValidatorNodes(d.nodes);
+        }
+      } catch {}
+    };
+
+    fetchNodes();
+    const valPoller = setInterval(fetchNodes, 1200);
 
     return () => {
       if (eventSource) eventSource.close();
       clearInterval(fallbackPoll);
+      clearInterval(valPoller);
     };
   }, []);
 
@@ -1297,11 +1350,77 @@ export default function StressTestPage() {
             </div>
           </div>
 
+          {/* ── Multi-Validator Real-Time Mempool Distribution Panel ── */}
+          <div className="mempool-cluster-panel">
+            <div className="mempool-cluster-header">
+              <div className="mempool-cluster-title">
+                <Layers size={18} color="#06b6d4" />
+                <span>Validator P2P Mempool Ingestion & Backlog Telemetry</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+                  Total Network Mempool:{" "}
+                  <strong style={{ color: "#38bdf8", fontFamily: "var(--font-mono, monospace)" }}>
+                    {validatorNodes.reduce((acc, n) => acc + (n.mempoolCount || 0), 0)} unconfirmed txs
+                  </strong>
+                </span>
+                {(() => {
+                  const onlineNodes = validatorNodes.filter((n) => n.isOnline);
+                  const counts = onlineNodes.map((n) => n.mempoolCount || 0);
+                  const isSynced = counts.length > 0 && Math.max(...counts) === Math.min(...counts);
+                  return (
+                    <span className={`mempool-sync-status ${isSynced ? "synced" : "divergent"}`}>
+                      {isSynced ? "✓ P2P Mempool Gossip Synced" : "⚡ Active Mempool Ingestion"}
+                    </span>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <div className="mempool-bars-grid">
+              {validatorNodes.map((node) => {
+                const count = node.mempoolCount || 0;
+                const kb = ((node.mempoolBytes || 0) / 1024).toFixed(1);
+                const isOnline = node.isOnline;
+
+                return (
+                  <div key={node.id} className="mempool-node-col">
+                    <div className="mempool-node-col-header">
+                      <span className="mempool-node-col-name">{node.name.split(" ")[0]} {node.name.split(" ")[1]}</span>
+                      <span
+                        className="mempool-node-col-val"
+                        style={{
+                          color: !isOnline ? "#f43f5e" : (count > 0 ? "#fbbf24" : "#34d399"),
+                        }}
+                      >
+                        {isOnline ? `${count} txs` : "Offline"}
+                      </span>
+                    </div>
+
+                    <div className="val-mempool-meter-bar" style={{ height: "5px", margin: "6px 0" }}>
+                      <div
+                        className={`val-mempool-meter-fill ${count > 30 ? "heavy" : (count > 0 ? "queued" : "")}`}
+                        style={{ width: `${Math.min(100, Math.max(isOnline ? 4 : 0, count * 2.5))}%` }}
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "#64748b" }}>
+                      <span>CometBFT :{node.cometPort}</span>
+                      <span>{isOnline ? `${kb} KB` : "Process Halted"}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* 4 Validator Cards */}
           <div className="validator-grid">
             {validatorNodes.map((node) => {
               const isTogglingThis = togglingNodeId === node.id || togglingNodeId === "all";
               const isOnline = node.isOnline;
+              const memCount = node.mempoolCount || 0;
+              const memKb = ((node.mempoolBytes || 0) / 1024).toFixed(1);
 
               return (
                 <div key={node.id} className={`validator-card ${!isOnline ? "offline" : ""}`}>
@@ -1336,6 +1455,48 @@ export default function StressTestPage() {
                     <span style={{ fontFamily: "var(--font-mono, monospace)" }}>
                       {isOnline ? (node.latestBlockHeight ? `#${node.latestBlockHeight}` : "Active") : "Stopped"}
                     </span>
+                  </div>
+
+                  {/* ── Real-Time Per-Validator Mempool Box ──────────────── */}
+                  <div className={`val-mempool-box ${!isOnline ? "offline" : (memCount > 0 ? "has-txs" : "")}`}>
+                    <div className="val-mempool-top">
+                      <span className="val-mempool-title">
+                        <Layers size={13} color={memCount > 0 ? "#f59e0b" : "#06b6d4"} />
+                        <span>Mempool Buffer</span>
+                      </span>
+                      {isOnline ? (
+                        <span className={`val-mempool-badge ${memCount > 0 ? "queued" : "clean"}`}>
+                          {memCount > 0 ? `⚡ ${memCount} pending` : "0 pending (Clean)"}
+                        </span>
+                      ) : (
+                        <span className="val-mempool-badge offline">
+                          Offline (Queue Halted)
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="val-mempool-meter-bar">
+                      <div
+                        className={`val-mempool-meter-fill ${memCount > 30 ? "heavy" : (memCount > 0 ? "queued" : "")}`}
+                        style={{ width: `${Math.min(100, Math.max(isOnline ? 3 : 0, memCount * 2.5))}%` }}
+                      />
+                    </div>
+
+                    <div className="val-mempool-footer">
+                      <span>Size: {isOnline ? `${memKb} KB` : "0 KB"}</span>
+                      {isOnline && (
+                        <button
+                          className="val-mempool-inspect-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            inspectNodeMempool(node);
+                          }}
+                          title="Click to view raw unconfirmed transactions in this node's mempool"
+                        >
+                          Inspect Mempool ({memCount})
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* BFT Role Hint */}
@@ -1385,7 +1546,7 @@ export default function StressTestPage() {
             <span>Chain Failure Detection & Anomaly Log</span>
           </div>
           <div className="section-desc">
-            Automated heuristic monitoring detects block stalls, quorum loss, latency spikes, and RPC timeouts.
+            Automated heuristic monitoring detects block stalls, quorum loss, latency spikes, and RPC timeouts. Click any incident or transaction to view root-cause diagnostics.
           </div>
 
           {incidents.length === 0 ? (
@@ -1401,21 +1562,43 @@ export default function StressTestPage() {
                   <th>Incident Type</th>
                   <th>Block Height</th>
                   <th>TPS at Trigger</th>
-                  <th>Pending Txs</th>
+                  <th>Affected Txs</th>
                   <th>Details</th>
                   <th>Recovery State</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {incidents.map((inc) => (
-                  <tr key={inc.id}>
+                  <tr 
+                    key={inc.id}
+                    className="clickable-row incident-row"
+                    onClick={() => setSelectedIncident(inc)}
+                    title="Click to inspect incident diagnostics and affected transactions"
+                  >
                     <td style={{ fontFamily: "var(--font-mono, monospace)" }}>{inc.timestamp}</td>
                     <td>
                       <span className="badge-tag danger">{inc.title}</span>
                     </td>
                     <td style={{ fontFamily: "var(--font-mono, monospace)" }}>#{inc.blockHeight}</td>
                     <td style={{ fontFamily: "var(--font-mono, monospace)" }}>{inc.tpsAtFailure} TPS</td>
-                    <td style={{ fontFamily: "var(--font-mono, monospace)" }}>{inc.pendingCount}</td>
+                    <td style={{ fontFamily: "var(--font-mono, monospace)" }}>
+                      {inc.affectedTxs && inc.affectedTxs.length > 0 ? (
+                        <span 
+                          className="badge-tag info"
+                          style={{ cursor: "pointer" }}
+                          title="Click to view affected in-flight transactions"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedIncident(inc);
+                          }}
+                        >
+                          {inc.affectedTxs.length} In-Flight
+                        </span>
+                      ) : (
+                        inc.pendingCount
+                      )}
+                    </td>
                     <td style={{ maxWidth: "260px" }}>{inc.details}</td>
                     <td>
                       {inc.recovered ? (
@@ -1425,6 +1608,17 @@ export default function StressTestPage() {
                       ) : (
                         <span className="badge-tag danger">Active Incident</span>
                       )}
+                    </td>
+                    <td>
+                      <button 
+                        className="row-inspect-pill amber"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedIncident(inc);
+                        }}
+                      >
+                        Inspect Details & Txs <Search size={11} />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1456,11 +1650,17 @@ export default function StressTestPage() {
                     <th>Latency</th>
                     <th>Block</th>
                     <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentTxs.map((tx, idx) => (
-                    <tr key={tx.hash || idx}>
+                    <tr 
+                      key={tx.hash || idx}
+                      className="clickable-row"
+                      onClick={() => setSelectedTx(tx)}
+                      title="Click to inspect full transaction details, latency & calldata trace"
+                    >
                       <td style={{ fontFamily: "var(--font-mono, monospace)", color: "#06b6d4" }}>
                         {tx.hash.startsWith("failed-")
                           ? tx.hash.substring(0, 18) + "..."
@@ -1483,6 +1683,17 @@ export default function StressTestPage() {
                         {tx.status === "mined" && <span className="badge-tag recovered">MINED</span>}
                         {tx.status === "pending" && <span className="badge-tag info">IN-FLIGHT</span>}
                         {tx.status === "failed" && <span className="badge-tag danger">FAILED</span>}
+                      </td>
+                      <td>
+                        <button 
+                          className="row-inspect-pill"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTx(tx);
+                          }}
+                        >
+                          Inspect <Search size={11} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1645,6 +1856,599 @@ export default function StressTestPage() {
               </button>
               <button className="btn btn-primary" onClick={() => handleExport("json")}>
                 <Download size={16} /> Download JSON
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Transaction Details & Execution Trace Modal ────────────── */}
+      {selectedTx && (
+        <div className="modal-overlay" onClick={() => setSelectedTx(null)}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: "840px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="modal-title">
+                <Zap size={22} color="#06b6d4" />
+                <span>Transaction Inspector & Trace</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                {selectedTx.status === "mined" && (
+                  <span className="badge-tag recovered">
+                    <CheckCircle2 size={13} /> COMMITTED (0x1)
+                  </span>
+                )}
+                {selectedTx.status === "pending" && (
+                  <span className="badge-tag info">
+                    <Clock size={13} /> IN-FLIGHT / MEMPOOL
+                  </span>
+                )}
+                {selectedTx.status === "failed" && (
+                  <span className="badge-tag danger">
+                    <AlertTriangle size={13} /> REVERTED / FAILED
+                  </span>
+                )}
+                <button
+                  style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center" }}
+                  onClick={() => setSelectedTx(null)}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Hero Box: Tx Hash & Copy */}
+            <div className="detail-hero-box">
+              <div className="detail-hero-header">
+                <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>
+                  Transaction Identifier (EVM Hash / Raw Tx)
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    className={`copy-btn-inline ${copiedField === "txHash" ? "copied" : ""}`}
+                    onClick={() => copyToClipboard(selectedTx.hash, "txHash")}
+                  >
+                    {copiedField === "txHash" ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedField === "txHash" ? "Copied!" : "Copy Full Hash"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="detail-hash-display">
+                {selectedTx.hash}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "#64748b" }}>
+                <span>Workload: <strong style={{ color: "#38bdf8" }}>{selectedTx.type}</strong></span>
+                <span>Target RPC: <strong style={{ color: "#cbd5e1" }}>{selectedTx.rpcEndpoint || "http://127.0.0.1:8545"}</strong></span>
+              </div>
+            </div>
+
+            {/* Error Diagnostics if failed */}
+            {selectedTx.error && (
+              <div className="error-diagnostic-box">
+                <div className="error-diagnostic-title">
+                  <AlertTriangle size={16} />
+                  <span>Execution Diagnostics & Anomaly Reason</span>
+                </div>
+                <div className="error-diagnostic-text">
+                  {selectedTx.error}
+                </div>
+              </div>
+            )}
+
+            {/* 2-Column Key-Value Cards Grid */}
+            <div className="detail-grid-2col">
+              {/* Signer From */}
+              <div className="detail-card">
+                <div className="detail-card-label">
+                  <span>Signer (From Address)</span>
+                  <button
+                    className="copy-btn-inline"
+                    style={{ padding: "1px 6px", fontSize: "0.68rem" }}
+                    onClick={() => copyToClipboard(selectedTx.from, "from")}
+                  >
+                    {copiedField === "from" ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <div className="detail-card-val" style={{ color: "#a5b4fc" }}>
+                  {selectedTx.from || "Unavailable"}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  Test Signer Pool Account #{selectedTx.walletIndex}
+                </div>
+              </div>
+
+              {/* Recipient To */}
+              <div className="detail-card">
+                <div className="detail-card-label">
+                  <span>Recipient / Target (To Address)</span>
+                  {selectedTx.to && (
+                    <button
+                      className="copy-btn-inline"
+                      style={{ padding: "1px 6px", fontSize: "0.68rem" }}
+                      onClick={() => copyToClipboard(selectedTx.to, "to")}
+                    >
+                      {copiedField === "to" ? "Copied!" : "Copy"}
+                    </button>
+                  )}
+                </div>
+                <div className="detail-card-val" style={{ color: "#38bdf8" }}>
+                  {selectedTx.to || "--"}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  {selectedTx.type === "contract_call" && "Storage.sol State Contract"}
+                  {selectedTx.type === "staking_delegation" && "EVM Staking Precompile (0x800)"}
+                  {(selectedTx.type === "c99_transfer" || selectedTx.type === "evm_transfer") && "Circular Wallet / Recipient"}
+                </div>
+              </div>
+
+              {/* Block Height & Finality */}
+              <div className="detail-card">
+                <div className="detail-card-label">
+                  <span>Block Inclusion & Finality</span>
+                </div>
+                <div className="detail-card-val" style={{ color: "#10b981" }}>
+                  {selectedTx.blockNumber ? `#${selectedTx.blockNumber}` : "Awaiting Block Proposal"}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  {selectedTx.blockNumber
+                    ? "Committed with CometBFT 1-block deterministic finality"
+                    : "Propagating through CometBFT P2P mempool"}
+                </div>
+              </div>
+
+              {/* Round-Trip Latency */}
+              <div className="detail-card">
+                <div className="detail-card-label">
+                  <span>Transaction Latency</span>
+                </div>
+                <div className="detail-card-val" style={{ color: "#f59e0b" }}>
+                  {selectedTx.latencyMs !== null ? `${selectedTx.latencyMs} ms` : "Pending commit"}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  Time from raw JSON-RPC ingestion to block receipt
+                </div>
+              </div>
+
+              {/* Nonce */}
+              <div className="detail-card">
+                <div className="detail-card-label">
+                  <span>Account Nonce</span>
+                </div>
+                <div className="detail-card-val">
+                  #{selectedTx.nonce}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  Strict sequential ordering per signer key
+                </div>
+              </div>
+
+              {/* Value */}
+              <div className="detail-card">
+                <div className="detail-card-label">
+                  <span>Value Transferred</span>
+                </div>
+                <div className="detail-card-val">
+                  {selectedTx.value || "0 C99"}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  Base denomination: ac99 / C99
+                </div>
+              </div>
+
+              {/* Gas Limits & Consumption */}
+              <div className="detail-card">
+                <div className="detail-card-label">
+                  <span>Gas Consumed vs Limit</span>
+                </div>
+                <div className="detail-card-val">
+                  {selectedTx.gasUsed || "--"} / {selectedTx.gasLimit || "21000"} gas
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  Cosmos EVM gas meter allocation
+                </div>
+              </div>
+
+              {/* Fees (EIP-1559) */}
+              <div className="detail-card">
+                <div className="detail-card-label">
+                  <span>EIP-1559 Fee Caps</span>
+                </div>
+                <div className="detail-card-val">
+                  Max: {selectedTx.maxFeePerGas || "3 gwei"} | Priority: {selectedTx.maxPriorityFeePerGas || "1 gwei"}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  Dynamic gas fee pricing
+                </div>
+              </div>
+
+              {/* Submission Time */}
+              <div className="detail-card">
+                <div className="detail-card-label">
+                  <span>Submission Timestamp</span>
+                </div>
+                <div className="detail-card-val">
+                  {new Date(selectedTx.submitTime).toLocaleTimeString()}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  {Math.round((Date.now() - selectedTx.submitTime) / 1000)}s ago
+                </div>
+              </div>
+
+              {/* Block Hash */}
+              <div className="detail-card">
+                <div className="detail-card-label">
+                  <span>Block Hash</span>
+                </div>
+                <div className="detail-card-val" style={{ fontSize: "0.82rem" }}>
+                  {selectedTx.blockHash ? `${selectedTx.blockHash.substring(0, 22)}...` : (selectedTx.status === "mined" ? "Confirmed on-chain" : "--")}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  Header state commitment hash
+                </div>
+              </div>
+            </div>
+
+            {/* Calldata / Input Section */}
+            <div style={{ marginBottom: "24px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>
+                  Calldata & Decoded Payload
+                </span>
+                {selectedTx.data && selectedTx.data !== "0x" && (
+                  <button
+                    className="copy-btn-inline"
+                    onClick={() => copyToClipboard(selectedTx.data, "calldata")}
+                  >
+                    {copiedField === "calldata" ? "Copied!" : "Copy Hex"}
+                  </button>
+                )}
+              </div>
+
+              {selectedTx.calldataDecoded && (
+                <div style={{ background: "rgba(99, 102, 241, 0.10)", border: "1px solid rgba(99, 102, 241, 0.25)", padding: "10px 14px", borderRadius: "8px", marginBottom: "8px", fontFamily: "var(--font-mono, monospace)", fontSize: "0.84rem", color: "#a5b4fc" }}>
+                  Decoded Function: <strong>{selectedTx.calldataDecoded}</strong>
+                </div>
+              )}
+
+              <div className="raw-code-box">
+                {selectedTx.data || "0x"}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "16px" }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  const curlCmd = `curl -X POST --data '{"jsonrpc":"2.0","method":"eth_getTransactionByHash","params":["${selectedTx.hash}"],"id":1}' -H "Content-Type: application/json" ${selectedTx.rpcEndpoint || "http://127.0.0.1:8545"}`;
+                  copyToClipboard(curlCmd, "curl");
+                }}
+              >
+                {copiedField === "curl" ? <Check size={13} /> : <Copy size={13} />}
+                {copiedField === "curl" ? "cURL Copied!" : "Copy RPC cURL"}
+              </button>
+
+              <div style={{ display: "flex", gap: "10px" }}>
+                {selectedIncident && (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setSelectedTx(null)}
+                  >
+                    ← Back to Incident
+                  </button>
+                )}
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setSelectedTx(null)}
+                >
+                  Close Inspector
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Chain Incident Diagnostics & Affected Transactions Modal ── */}
+      {selectedIncident && !selectedTx && (
+        <div className="modal-overlay" onClick={() => setSelectedIncident(null)}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: "860px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="modal-title" style={{ color: "#f59e0b" }}>
+                <AlertTriangle size={22} color="#f59e0b" />
+                <span>Incident Diagnostics: {selectedIncident.title}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                {selectedIncident.recovered ? (
+                  <span className="badge-tag recovered">
+                    <CheckCircle2 size={13} /> Recovered ({selectedIncident.recoveryTime || "Normal"})
+                  </span>
+                ) : (
+                  <span className="badge-tag danger">
+                    <AlertTriangle size={13} /> Active Incident
+                  </span>
+                )}
+                <button
+                  style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center" }}
+                  onClick={() => setSelectedIncident(null)}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Incident KPI Grid */}
+            <div className="report-grid" style={{ marginBottom: "20px" }}>
+              <div className="report-box">
+                <div className="report-box-label">Timestamp</div>
+                <div className="report-box-val" style={{ fontSize: "1rem" }}>{selectedIncident.timestamp}</div>
+              </div>
+              <div className="report-box">
+                <div className="report-box-label">Block Height</div>
+                <div className="report-box-val" style={{ color: "#38bdf8" }}>#{selectedIncident.blockHeight}</div>
+              </div>
+              <div className="report-box">
+                <div className="report-box-label">TPS at Trigger</div>
+                <div className="report-box-val" style={{ color: "#6366f1" }}>{selectedIncident.tpsAtFailure} TPS</div>
+              </div>
+              <div className="report-box">
+                <div className="report-box-label">Quorum Power Ratio</div>
+                <div className="report-box-val" style={{ color: selectedIncident.onlineVotingPowerRatio?.startsWith("100") ? "#10b981" : "#f59e0b" }}>
+                  {selectedIncident.onlineVotingPowerRatio || "N/A"}
+                </div>
+              </div>
+            </div>
+
+            {/* Incident Diagnostic Cause Details */}
+            <div style={{ background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.25)", borderRadius: "12px", padding: "16px", marginBottom: "24px" }}>
+              <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#fbbf24", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Zap size={14} /> Heuristic Diagnostic Summary
+              </div>
+              <div style={{ color: "#fef3c7", fontSize: "0.92rem", lineHeight: 1.6 }}>
+                {selectedIncident.details}
+              </div>
+            </div>
+
+            {/* Affected Transactions Sub-Table */}
+            <div style={{ marginBottom: "24px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Radio size={16} color="#06b6d4" />
+                  <span>
+                    {selectedIncident.affectedTxs && selectedIncident.affectedTxs.length > 0
+                      ? `Associated Transactions During Incident (${selectedIncident.affectedTxs.length})`
+                      : `Active Stress Transactions During Session (${recentTxs.slice(0, 10).length})`}
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                  Click any transaction to inspect its receipt & calldata
+                </span>
+              </div>
+
+              {((selectedIncident.affectedTxs && selectedIncident.affectedTxs.length > 0) ? selectedIncident.affectedTxs : recentTxs.slice(0, 10)).length === 0 ? (
+                <div style={{ padding: "20px", textAlign: "center", color: "#64748b", background: "rgba(255,255,255,0.02)", borderRadius: "10px" }}>
+                  No in-flight transactions were caught at the exact millisecond this incident was triggered.
+                </div>
+              ) : (
+                <div style={{ maxHeight: "280px", overflowY: "auto", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px" }}>
+                  <table className="data-table" style={{ margin: 0 }}>
+                    <thead>
+                      <tr>
+                        <th>Tx Hash</th>
+                        <th>Type</th>
+                        <th>Signer</th>
+                        <th>Nonce</th>
+                        <th>Latency</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {((selectedIncident.affectedTxs && selectedIncident.affectedTxs.length > 0)
+                        ? selectedIncident.affectedTxs
+                        : recentTxs.slice(0, 10)
+                      ).map((tx, idx) => (
+                        <tr
+                          key={tx.hash || idx}
+                          className="clickable-row"
+                          onClick={() => setSelectedTx(tx)}
+                          title="Click to view full transaction details"
+                        >
+                          <td style={{ fontFamily: "var(--font-mono, monospace)", color: "#06b6d4" }}>
+                            {tx.hash.startsWith("failed-")
+                              ? tx.hash.substring(0, 16) + "..."
+                              : `${tx.hash.substring(0, 10)}...${tx.hash.substring(tx.hash.length - 6)}`}
+                          </td>
+                          <td>
+                            <span className="badge-tag info">{tx.type}</span>
+                          </td>
+                          <td style={{ fontFamily: "var(--font-mono, monospace)" }}>
+                            Wallet #{tx.walletIndex}
+                          </td>
+                          <td style={{ fontFamily: "var(--font-mono, monospace)" }}>{tx.nonce}</td>
+                          <td style={{ fontFamily: "var(--font-mono, monospace)" }}>
+                            {tx.latencyMs !== null ? `${tx.latencyMs}ms` : "Pending..."}
+                          </td>
+                          <td>
+                            {tx.status === "mined" && <span className="badge-tag recovered">MINED</span>}
+                            {tx.status === "pending" && <span className="badge-tag info">IN-FLIGHT</span>}
+                            {tx.status === "failed" && <span className="badge-tag danger">FAILED</span>}
+                          </td>
+                          <td>
+                            <button
+                              className="row-inspect-pill"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTx(tx);
+                              }}
+                            >
+                              Inspect <Search size={11} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "16px" }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setSelectedIncident(null)}
+              >
+                Close Incident Diagnostics
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Validator Mempool Live Inspector Modal ─────────────────── */}
+      {inspectingMempoolNode && (
+        <div className="modal-overlay" onClick={() => setInspectingMempoolNode(null)}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: "860px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="modal-title" style={{ color: "#06b6d4" }}>
+                <Layers size={22} color="#06b6d4" />
+                <span>Validator Mempool Inspector: {inspectingMempoolNode.name}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span className={`badge-tag ${inspectingMempoolNode.isOnline ? "recovered" : "danger"}`}>
+                  {inspectingMempoolNode.isOnline ? "CometBFT Online" : "Node Halted"}
+                </span>
+                <button
+                  style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center" }}
+                  onClick={() => setInspectingMempoolNode(null)}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Mempool KPI Overview Grid */}
+            <div className="report-grid" style={{ marginBottom: "20px" }}>
+              <div className="report-box">
+                <div className="report-box-label">CometBFT RPC</div>
+                <div className="report-box-val" style={{ fontSize: "0.95rem", color: "#38bdf8" }}>
+                  :{inspectingMempoolNode.cometPort}
+                </div>
+              </div>
+              <div className="report-box">
+                <div className="report-box-label">Unconfirmed Backlog</div>
+                <div className="report-box-val" style={{ color: (mempoolTxsData?.count ?? inspectingMempoolNode.mempoolCount ?? 0) > 0 ? "#fbbf24" : "#10b981" }}>
+                  {mempoolTxsData?.count ?? inspectingMempoolNode.mempoolCount ?? 0} txs
+                </div>
+              </div>
+              <div className="report-box">
+                <div className="report-box-label">Mempool Volume</div>
+                <div className="report-box-val">
+                  {(((mempoolTxsData?.totalBytes ?? inspectingMempoolNode.mempoolBytes ?? 0) / 1024).toFixed(1))} KB
+                </div>
+              </div>
+              <div className="report-box">
+                <div className="report-box-label">EVM Interface</div>
+                <div className="report-box-val" style={{ fontSize: "0.95rem" }}>
+                  Port {inspectingMempoolNode.evmPort}
+                </div>
+              </div>
+            </div>
+
+            {/* Explanation card */}
+            <div style={{ background: "rgba(6, 182, 212, 0.08)", border: "1px solid rgba(6, 182, 212, 0.25)", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px", fontSize: "0.82rem", color: "#cbd5e1", lineHeight: 1.5 }}>
+              This inspector displays the in-memory transaction buffer of <strong>{inspectingMempoolNode.moniker}</strong>. Transactions submitted to the chain sit here until proposing leaders package them into blocks and CometBFT validator consensus commits them with deterministic finality.
+            </div>
+
+            {/* Mempool Transaction List */}
+            <div style={{ marginBottom: "24px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>
+                  Unconfirmed Transactions in Memory ({mempoolTxsData?.txs?.length || 0})
+                </span>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => inspectNodeMempool(inspectingMempoolNode)}
+                  disabled={loadingMempool}
+                  style={{ padding: "3px 10px", fontSize: "0.75rem" }}
+                >
+                  <RotateCcw size={12} /> {loadingMempool ? "Refreshing..." : "Refresh Queue"}
+                </button>
+              </div>
+
+              {loadingMempool ? (
+                <div style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
+                  Querying CometBFT unconfirmed_txs buffer...
+                </div>
+              ) : !mempoolTxsData?.txs || mempoolTxsData.txs.length === 0 ? (
+                <div style={{ padding: "28px", textAlign: "center", color: "#64748b", background: "rgba(255,255,255,0.02)", borderRadius: "10px" }}>
+                  <CheckCircle2 size={24} color="#10b981" style={{ margin: "0 auto 8px auto" }} />
+                  <div>Mempool buffer is clean (0 pending transactions).</div>
+                  <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "4px" }}>
+                    All submitted transactions have been successfully committed into blocks.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ maxHeight: "300px", overflowY: "auto", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px" }}>
+                  <table className="data-table" style={{ margin: 0 }}>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>CometBFT SHA-256 Hash</th>
+                        <th>Payload Size</th>
+                        <th>Raw Base64 Preview</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mempoolTxsData.txs.map((tx) => (
+                        <tr key={tx.hash || tx.index}>
+                          <td style={{ fontFamily: "var(--font-mono, monospace)" }}>{tx.index}</td>
+                          <td style={{ fontFamily: "var(--font-mono, monospace)", color: "#06b6d4" }}>
+                            {tx.hash.substring(0, 16)}...{tx.hash.substring(tx.hash.length - 8)}
+                          </td>
+                          <td style={{ fontFamily: "var(--font-mono, monospace)" }}>
+                            {tx.sizeBytes} bytes
+                          </td>
+                          <td style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.75rem", color: "#94a3b8", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {tx.rawBase64}
+                          </td>
+                          <td>
+                            <button
+                              className="copy-btn-inline"
+                              onClick={() => copyToClipboard(tx.hash, `memHash-${tx.index}`)}
+                            >
+                              {copiedField === `memHash-${tx.index}` ? <Check size={11} /> : <Copy size={11} />}
+                              {copiedField === `memHash-${tx.index}` ? "Copied!" : "Copy Hash"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "16px" }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setInspectingMempoolNode(null)}
+              >
+                Close Mempool Inspector
               </button>
             </div>
           </div>

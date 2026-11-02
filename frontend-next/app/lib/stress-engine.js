@@ -149,6 +149,12 @@ class StressEngine {
 
     // Read latest contract address from public/latest_contract.json if present
     this.syncStorageContractAddress();
+
+    // Standing background telemetry loop (runs continuously to keep mempool and node statuses live)
+    this.collectTelemetry().catch(() => {});
+    setInterval(() => {
+      this.collectTelemetry().catch(() => {});
+    }, 1000);
   }
 
   syncStorageContractAddress() {
@@ -438,6 +444,16 @@ class StressEngine {
       const tx = await wObj.wallet.sendTransaction(txPayload);
       const hash = tx.hash;
 
+      let calldataDecoded = null;
+      if (txType === "contract_call") {
+        calldataDecoded = `Storage.set(${txIndex})`;
+      } else if (txType === "staking_delegation") {
+        const targetVal = KNOWN_VALIDATORS[txIndex % KNOWN_VALIDATORS.length];
+        calldataDecoded = `StakingPrecompile.delegate("${targetVal}", 0.1 C99)`;
+      } else {
+        calldataDecoded = `Native C99 Transfer (${ethers.formatUnits(txPayload.value || 0n, "gwei")} gwei)`;
+      }
+
       const record = {
         hash,
         type: txType,
@@ -448,9 +464,18 @@ class StressEngine {
         submitTime,
         status: "pending", // 'pending' | 'mined' | 'failed'
         blockNumber: null,
+        blockHash: null,
         latencyMs: null,
         gasUsed: null,
+        gasLimit: txPayload.gasLimit ? txPayload.gasLimit.toString() : "21000",
+        value: txPayload.value ? `${ethers.formatUnits(txPayload.value, "gwei")} gwei (0.000000001 C99)` : "0 C99",
+        data: txPayload.data || "0x",
+        calldataDecoded,
+        maxFeePerGas: "3 gwei",
+        maxPriorityFeePerGas: "1 gwei",
         error: null,
+        confirmTime: null,
+        rpcEndpoint: this.config.rpcUrl,
       };
 
       this.pendingTxs.set(hash, record);
@@ -471,6 +496,16 @@ class StressEngine {
         } catch {}
       }
 
+      let calldataDecoded = null;
+      if (txType === "contract_call") {
+        calldataDecoded = `Storage.set(${txIndex})`;
+      } else if (txType === "staking_delegation") {
+        const targetVal = KNOWN_VALIDATORS[txIndex % KNOWN_VALIDATORS.length];
+        calldataDecoded = `StakingPrecompile.delegate("${targetVal}", 0.1 C99)`;
+      } else {
+        calldataDecoded = `Native C99 Transfer (${ethers.formatUnits(txPayload.value || 0n, "gwei")} gwei)`;
+      }
+
       const failedRecord = {
         hash: `failed-${Date.now()}-${txIndex}`,
         type: txType,
@@ -481,9 +516,18 @@ class StressEngine {
         submitTime,
         status: "failed",
         blockNumber: null,
+        blockHash: null,
         latencyMs: Date.now() - submitTime,
         gasUsed: "0",
+        gasLimit: txPayload.gasLimit ? txPayload.gasLimit.toString() : "21000",
+        value: txPayload.value ? `${ethers.formatUnits(txPayload.value || 0n, "gwei")} gwei (0.000000001 C99)` : "0 C99",
+        data: txPayload.data || "0x",
+        calldataDecoded,
+        maxFeePerGas: "3 gwei",
+        maxPriorityFeePerGas: "1 gwei",
         error: errMsg,
+        confirmTime: null,
+        rpcEndpoint: this.config.rpcUrl,
       };
       this.recentTxs.unshift(failedRecord);
       if (this.recentTxs.length > 50) this.recentTxs.pop();
@@ -535,8 +579,10 @@ class StressEngine {
           const latency = Math.max(10, Date.now() - record.submitTime);
           record.status = receipt.status === 1 ? "mined" : "failed";
           record.blockNumber = receipt.blockNumber;
+          record.blockHash = receipt.blockHash;
           record.latencyMs = latency;
           record.gasUsed = receipt.gasUsed ? receipt.gasUsed.toString() : "21000";
+          record.confirmTime = new Date().toLocaleTimeString();
 
           this.metrics.included++;
           this.metrics.pending = Math.max(0, this.metrics.pending - 1);
@@ -793,6 +839,12 @@ class StressEngine {
       return;
     }
 
+    // Capture in-flight pending and recently failed/submitted transactions
+    const affectedTxs = [
+      ...Array.from(this.pendingTxs.values()),
+      ...this.recentTxs.filter((t) => t.status === "failed" || Date.now() - t.submitTime < 15000),
+    ].slice(0, 10);
+
     const incident = {
       id: `inc-${Date.now()}`,
       title,
@@ -804,6 +856,7 @@ class StressEngine {
       pendingCount: this.metrics.pending,
       onlineVotingPowerRatio: this.metrics.onlineVotingPowerRatio,
       recovered: false,
+      affectedTxs,
     };
 
     this.incidents.unshift(incident);
